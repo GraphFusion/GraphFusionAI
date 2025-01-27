@@ -9,3 +9,4 @@ transformers
 pytest
 pytest-cov
 jsonlines
+litellm
