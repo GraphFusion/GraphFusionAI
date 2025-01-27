@@ -14,5 +14,7 @@ def create_llm(provider: str, model: str, **kwargs):
         return LiteLLM(model, **kwargs)
     if provider == "openai":
         return OpenAIClient(model, **kwargs)
+    if [rovider == "anthropic":
+        return AnthropicClient(model, **kwargs)]
     else:
         raise ValueError(f"Unknown LLM provider: {provider}")
