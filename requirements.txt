@@ -10,3 +10,6 @@ pytest
 pytest-cov
 jsonlines
 litellm
+anthropic
+huggingface_hub
+google-cloud-dialogflow
