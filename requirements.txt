@@ -13,3 +13,4 @@ litellm
 anthropic
 huggingface_hub
 google-cloud-dialogflow
+pydantic
