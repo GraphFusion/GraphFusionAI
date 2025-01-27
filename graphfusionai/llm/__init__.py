@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from .huggingface_client import HuggingFaceLLM
 from .litellm_client import LiteLLM
 from .openai_client import OpenAIClient
+from .anthropic_client import AnthropicClient
 
 def create_llm(provider: str, model: str, **kwargs):
     if provider == "huggingface":
@@ -14,7 +15,7 @@ def create_llm(provider: str, model: str, **kwargs):
         return LiteLLM(model, **kwargs)
     if provider == "openai":
         return OpenAIClient(model, **kwargs)
-    if [rovider == "anthropic":
-        return AnthropicClient(model, **kwargs)]
+    if provider == "anthropic":
+        return AnthropicClient(model, **kwargs)
     else:
         raise ValueError(f"Unknown LLM provider: {provider}")
