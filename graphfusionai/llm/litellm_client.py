@@ -1,4 +1,9 @@
 
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from typing import List, Dict
 import litellm
 from .base_llm import BaseLLM
 
