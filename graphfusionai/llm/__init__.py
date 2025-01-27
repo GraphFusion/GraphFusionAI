@@ -7,6 +7,7 @@ from .huggingface_client import HuggingFaceLLM
 from .litellm_client import LiteLLM
 from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
+from .llama_client import LLaMAClient
 
 def create_llm(provider: str, model: str, **kwargs):
     if provider == "huggingface":
@@ -17,5 +18,7 @@ def create_llm(provider: str, model: str, **kwargs):
         return OpenAIClient(model, **kwargs)
     if provider == "anthropic":
         return AnthropicClient(model, **kwargs)
+    if provider == "llama":
+        return LLaMAClient(model, **kwargs)
     else:
         raise ValueError(f"Unknown LLM provider: {provider}")
