@@ -5,7 +5,6 @@ import openai
 from typing import List, Dict
 from .base_llm import BaseLLM
 
-
 class OpenAIClient(BaseLLM):
     def __init__(self, api_key: str, model: str):
         super().__init__(api_key, model)
