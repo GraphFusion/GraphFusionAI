@@ -14,3 +14,4 @@ anthropic
 huggingface_hub
 google-cloud-dialogflow
 pydantic
+python-dotenv

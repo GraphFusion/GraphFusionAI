@@ -14,7 +14,8 @@ class HuggingFaceLLM(BaseLLM):
             max_length (int): Maximum length of generated text.
             temperature (float): Sampling temperature. Lower is more deterministic, higher is more random.
         """
-        super().__init__(model)
+        super().__init__(model)\
+
         self.tokenizer = AutoTokenizer.from_pretrained(model)
         self.model = AutoModelForCausalLM.from_pretrained(model).to(device)
         self.pipeline = pipeline(
