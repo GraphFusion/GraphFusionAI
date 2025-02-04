@@ -9,3 +9,10 @@ transformers
 pytest
 pytest-cov
 jsonlines
+litellm
+anthropic
+huggingface_hub
+google-cloud-dialogflow
+pydantic
+python-dotenv
+secure-smtplib
