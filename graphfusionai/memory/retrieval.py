@@ -21,16 +21,13 @@ class MemoryRetrieval:
         """
         scores = []
 
-        # Compute cosine similarity between query and stored memories
         for key, memory in memory_store.items():
             memory_vector = torch.tensor([float(x) for x in key.strip("()").split(",")])
             similarity = 1 - cosine(query_vector.tolist(), memory_vector.tolist())  # Cosine similarity
             scores.append((key, similarity))
 
-        # Sort by highest similarity score
         scores.sort(key=lambda x: x[1], reverse=True)
 
-        # Return top-k results
         results = []
         for key, score in scores[:top_k]:
             memory_data = memory_store[key]
