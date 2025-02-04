@@ -16,3 +16,4 @@ google-cloud-dialogflow
 pydantic
 python-dotenv
 secure-smtplib
+sentence_transformers
