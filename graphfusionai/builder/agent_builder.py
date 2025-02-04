@@ -5,7 +5,7 @@ from typing import Any, Dict, Type, Union
 from graphfusionai.agents.base_agent import BaseAgent
 from graphfusionai.core.graph import GraphNetwork
 from graphfusionai.core.knowledge_graph import KnowledgeGraph
-from graphfusionai.core.memory_cell import DynamicMemoryCell
+from graphfusionai.core.query_engine import DynamicMemoryCell
 from builder.validators import validate_config
 from graphfusionai.tools.registry import ToolRegistry
 
