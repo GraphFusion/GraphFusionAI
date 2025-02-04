@@ -9,18 +9,20 @@ class DynamicMemoryCell(nn.Module):
     using an attention-based mechanism.
     """
 
-    def __init__(self, input_dim: int, memory_dim: int, context_dim: int, lr: float = 0.001):
+    def __init__(self, input_dim: int, memory_dim: int, context_dim: int, lr: float = 0.001, temperature: float = 1.0):
         """
         Initializes the memory cell.
 
         Args:
             input_dim (int): Dimensionality of input embeddings.
-            memory_dim (int): Dimensionality of memory state.
+            memory_dim (int): Number of memory slots.
             context_dim (int): Dimensionality of context vectors.
             lr (float): Learning rate for memory updates.
+            temperature (float): Scaling factor for attention softmax.
         """
         super(DynamicMemoryCell, self).__init__()
         self.memory_dim = memory_dim
+        self.temperature = temperature
 
         self.keys = nn.Parameter(torch.randn(memory_dim, input_dim))  
         self.values = nn.Parameter(torch.randn(memory_dim, context_dim))  
@@ -40,7 +42,7 @@ class DynamicMemoryCell(nn.Module):
         Returns:
             torch.Tensor: Context vector retrieved from memory.
         """
-        attention_scores = torch.softmax(self.attention(input_embedding), dim=-1)  
+        attention_scores = torch.softmax(self.attention(input_embedding) / self.temperature, dim=-1)  
         retrieved_memory = torch.matmul(attention_scores, self.values)  
         return retrieved_memory
 
@@ -52,11 +54,13 @@ class DynamicMemoryCell(nn.Module):
             input_embedding (torch.Tensor): New input representation.
             context (torch.Tensor): Context vector to update memory.
         """
-        attention_scores = torch.softmax(self.attention(input_embedding), dim=-1)
+        attention_scores = torch.softmax(self.attention(input_embedding) / self.temperature, dim=-1)
         updated_values = self.update_layer(context)
 
-        self.values.data = (1 - attention_scores.unsqueeze(-1)) * self.values.data + \
-                           attention_scores.unsqueeze(-1) * updated_values
+        loss = torch.nn.functional.mse_loss(self.values, updated_values)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
     def save_memory(self, path: str) -> None:
         """
@@ -65,7 +69,7 @@ class DynamicMemoryCell(nn.Module):
         Args:
             path (str): File path to save the memory state.
         """
-        torch.save({'keys': self.keys, 'values': self.values}, path)
+        torch.save({'keys': self.keys.data, 'values': self.values.data}, path)
 
     def load_memory(self, path: str) -> None:
         """
@@ -75,5 +79,6 @@ class DynamicMemoryCell(nn.Module):
             path (str): File path to load the memory state from.
         """
         checkpoint = torch.load(path)
-        self.keys = checkpoint['keys']
-        self.values = checkpoint['values']
+        with torch.no_grad():
+            self.keys.copy_(checkpoint['keys'])
+            self.values.copy_(checkpoint['values'])
