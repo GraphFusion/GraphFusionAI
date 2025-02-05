@@ -1,3 +1,7 @@
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from task_graph import TaskGraph
 
 class TaskManager:
