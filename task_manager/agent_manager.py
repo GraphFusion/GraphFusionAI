@@ -83,24 +83,3 @@ class AgentManager:
         for agent_id, info in self.agents.items():
             print(f"Agent {agent_id}: {info}")
 
-# Example usage
-if __name__ == "__main__":
-    am = AgentManager()
-    
-    # Register agents with different skills
-    am.register_agent("agent1", ["ML", "Data Processing"])
-    am.register_agent("agent2", ["NLP", "Graph Analysis"])
-    am.register_agent("agent3", ["Data Processing", "Automation"])
-    
-    # List registered agents
-    am.list_agents()
-
-    # Assign tasks based on skill requirements
-    am.assign_task("task1", {"ML"})
-    am.assign_task("task2", {"Graph Analysis"})
-
-    # Release an agent after task completion
-    am.release_agent("agent1")
-    
-    # List agents again
-    am.list_agents()
