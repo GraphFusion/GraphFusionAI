@@ -4,8 +4,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import heapq
 from collections import deque
-from task_manager.task_graph import TaskGraph
-from task_manager.agent_manager import AgentManager
+from task_graph import TaskGraph
+from agent_manager import AgentManager
 
 class TaskScheduler:
     def __init__(self, agent_manager: AgentManager, task_graph: TaskGraph):
