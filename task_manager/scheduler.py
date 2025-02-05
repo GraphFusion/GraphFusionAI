@@ -1,3 +1,7 @@
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import heapq
 from collections import deque
 from task_manager.task_graph import TaskGraph
