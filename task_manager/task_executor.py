@@ -6,17 +6,18 @@ import time
 from task_manager import TaskManager
 
 class TaskExecutor:
-    def __init__(self, task_manager):
-        """Initialize with a Task Manager instance."""
+    def __init__(self, task_manager, agent_manager):
+        """Initialize the TaskExecutor with TaskManager and AgentManager."""
         self.task_manager = task_manager
+        self.agent_manager = agent_manager
 
-    def execute_task(self, task_id):
-        """Simulate task execution and mark as complete."""
-        print(f"Executing task: {task_id}")
-        time.sleep(2)  
-        self.task_manager.update_task_status(task_id, "Completed")
-        self.task_manager.task_graph.mark_task_completed(task_id)
-        print(f"Task {task_id} completed.")
+    def execute(self, task_id, required_skills):
+        """Executes a task by assigning it to an appropriate agent."""
+        assigned_agent = self.agent_manager.assign_task(task_id, required_skills)
+        if assigned_agent:
+            print(f"Task {task_id} is being processed by Agent {assigned_agent}.")
+        else:
+            print(f"Failed to assign task {task_id}.")
 
     def run(self):
         """Runs all executable tasks in order."""
