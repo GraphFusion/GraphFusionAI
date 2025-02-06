@@ -1,4 +1,3 @@
-# graphfusionai/task_manager/agent_manager.py
 
 class AgentManager:
     def __init__(self):

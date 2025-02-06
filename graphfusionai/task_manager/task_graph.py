@@ -5,36 +5,60 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import networkx as nx
 
 class TaskGraph:
-    def __init__(self):
-        """Initialize a directed graph for task dependencies."""
-        self.graph = nx.DiGraph()
+    """Graph structure to manage task dependencies."""
 
-    def add_task(self, task_id, dependencies=None):
-        """Adds a task to the graph and sets up dependencies."""
-        self.graph.add_node(task_id)
+    def __init__(self):
+        self.graph = nx.DiGraph()  # Directed graph for task dependencies
+
+    def add_task(self, task_name, priority="medium", dependencies=None):
+        """
+        Adds a task to the graph with optional dependencies.
+
+        Args:
+            task_name (str): Name of the task.
+            priority (str): Priority level (low, medium, high).
+            dependencies (list, optional): List of dependent task names.
+
+        Returns:
+            str: The task name.
+        """
+        self.graph.add_node(task_name, priority=priority)
         if dependencies:
             for dep in dependencies:
-                self.graph.add_edge(dep, task_id)  
+                self.graph.add_edge(dep, task_name)  # Task depends on another
+        return task_name
 
-    def get_executable_tasks(self):
-        """Returns tasks that have no dependencies or all dependencies are completed."""
-        executable = []
-        for node in self.graph.nodes:
-            if self.graph.in_degree(node) == 0:  
-                executable.append(node)
-        return executable
+    def get_execution_order(self):
+        """
+        Returns tasks in topological order to ensure dependencies are met.
 
-    def mark_task_completed(self, task_id):
-        """Removes completed task from the graph."""
-        if task_id in self.graph:
-            self.graph.remove_node(task_id)
+        Returns:
+            list: Ordered list of tasks for execution.
+        """
+        if not nx.is_directed_acyclic_graph(self.graph):
+            raise ValueError("Cycle detected in task dependencies!")
+        return list(nx.topological_sort(self.graph))
 
-# Example usage
-if __name__ == "__main__":
-    tg = TaskGraph()
-    tg.add_task("task1")
-    tg.add_task("task2", dependencies=["task1"])
-    
-    print(tg.get_executable_tasks())  
-    tg.mark_task_completed("task1")
-    print(tg.get_executable_tasks())  
+    def get_task_priority(self, task_name):
+        """
+        Retrieves the priority level of a task.
+
+        Args:
+            task_name (str): Name of the task.
+
+        Returns:
+            str: Priority level (low, medium, high).
+        """
+        return self.graph.nodes[task_name].get("priority", "medium")
+
+    def visualize_graph(self):
+        """
+        Visualizes the task graph (for debugging and understanding dependencies).
+        """
+        import matplotlib.pyplot as plt
+        
+        plt.figure(figsize=(8, 5))
+        pos = nx.spring_layout(self.graph)
+        nx.draw(self.graph, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=2000, font_size=10)
+        plt.title("Task Dependency Graph")
+        plt.show()
