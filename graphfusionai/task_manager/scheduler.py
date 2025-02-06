@@ -20,8 +20,8 @@ class Scheduler:
         """
         self.agent_manager = agent_manager
         self.max_concurrent_tasks = max_concurrent_tasks
-        self.task_status = {}  # Track the status of tasks (e.g., pending, running, completed)
-        self.lock = threading.Lock()  # To ensure thread-safety for concurrent task executions
+        self.task_status = {}  
+        self.lock = threading.Lock()  
     
     def assign_task_to_agent(self, task):
         """Assigns a task to an available agent."""
