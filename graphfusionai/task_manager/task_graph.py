@@ -8,7 +8,7 @@ class TaskGraph:
     """Graph structure to manage task dependencies."""
 
     def __init__(self):
-        self.graph = nx.DiGraph()  # Directed graph for task dependencies
+        self.graph = nx.DiGraph()  
 
     def add_task(self, task_name, priority="medium", dependencies=None):
         """
@@ -25,7 +25,7 @@ class TaskGraph:
         self.graph.add_node(task_name, priority=priority)
         if dependencies:
             for dep in dependencies:
-                self.graph.add_edge(dep, task_name)  # Task depends on another
+                self.graph.add_edge(dep, task_name)  
         return task_name
 
     def get_execution_order(self):
