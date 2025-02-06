@@ -22,7 +22,7 @@ class TaskExecutor:
         self.task_graph = task_graph
         self.max_retries = max_retries
         self.parallel = parallel
-        self.task_status = {}  # Tracks task statuses
+        self.task_status = {}  
 
     def execute_task(self, task_name):
         """
@@ -35,7 +35,7 @@ class TaskExecutor:
         while retries <= self.max_retries:
             try:
                 print(f"🔄 Executing Task: {task_name} (Attempt {retries+1})")
-                time.sleep(1)  # Simulate task execution time
+                time.sleep(1)  
                 self.task_status[task_name] = "Completed"
                 print(f"✅ Task Completed: {task_name}")
                 return True
@@ -76,7 +76,7 @@ class TaskExecutor:
                 self.execute_task(task)
                 task_queue.task_done()
 
-        for _ in range(min(len(tasks), 4)):  # Limit parallel threads
+        for _ in range(min(len(tasks), 4)):  
             thread = threading.Thread(target=worker)
             threads.append(thread)
             thread.start()
