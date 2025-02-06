@@ -32,8 +32,7 @@ class Scheduler:
             self.task_status[task] = 'Running'
         else:
             print(f"No available agents for task '{task}', retrying...")
-            time.sleep(2)  # Wait before retrying
-
+            time.sleep(2)  
     def execute_task(self, task):
         """Executes a single task."""
         with self.lock:
@@ -46,18 +45,14 @@ class Scheduler:
         """Executes tasks concurrently, respecting the max concurrency limit."""
         running_tasks = []
         
-        # Ensure that we are not exceeding max concurrency limit
         for task in tasks:
             if len(running_tasks) >= self.max_concurrent_tasks:
-                # Wait for one of the running tasks to complete
                 completed_task = running_tasks.pop(0)
                 self.task_status[completed_task] = 'Completed'
             
-            # Execute the task
             running_tasks.append(task)
             self.execute_task(task)
         
-        # Wait for remaining tasks to complete
         while running_tasks:
             task = running_tasks.pop(0)
             self.task_status[task] = 'Completed'
@@ -71,7 +66,7 @@ class Scheduler:
 
     def run_schedule(self, task_graph):
         """Runs the task schedule based on the task graph and dependencies."""
-        ordered_tasks = task_graph.topological_sort()  # Get tasks in execution order
+        ordered_tasks = task_graph.topological_sort() 
         self.execute_concurrent_tasks(ordered_tasks)
 
     def get_task_status(self, task):
