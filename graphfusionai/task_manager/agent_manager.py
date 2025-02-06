@@ -1,84 +1,77 @@
+import threading
+import time
+from queue import Queue
+
+class Agent:
+    """Represents an AI Agent that executes tasks."""
+    
+    def __init__(self, name, capabilities=None):
+        """
+        Initializes an Agent.
+
+        Args:
+            name (str): The agent's name.
+            capabilities (list): List of tasks the agent can handle.
+        """
+        self.name = name
+        self.capabilities = capabilities or []
+        self.status = "Idle"
+        self.current_task = None
+
+    def assign_task(self, task):
+        """Assigns a task to the agent."""
+        if self.status == "Idle":
+            self.current_task = task
+            self.status = "Busy"
+            print(f"🚀 {self.name} started task: {task}")
+            time.sleep(2)  
+            self.complete_task()
+        else:
+            print(f"⚠️ {self.name} is busy with another task.")
+
+    def complete_task(self):
+        """Marks task as completed."""
+        print(f"✅ {self.name} completed task: {self.current_task}")
+        self.current_task = None
+        self.status = "Idle"
 
 class AgentManager:
+    """Manages multiple AI agents and task assignments."""
+    
     def __init__(self):
-        """Initialize the agent manager with an empty registry of agents."""
-        self.agents = {}  
+        self.agents = []
+        self.task_queue = Queue()
+        self.lock = threading.Lock()
 
-    def register_agent(self, agent_id, skills):
-        """
-        Registers a new agent with a set of skills.
-        :param agent_id: Unique identifier for the agent.
-        :param skills: List of skills the agent is proficient in.
-        """
-        if agent_id in self.agents:
-            print(f"Agent {agent_id} is already registered.")
-            return
-
-        self.agents[agent_id] = {
-            "skills": set(skills),
-            "status": "Available",  
-            "task_count": 0
-        }
-        print(f"Agent {agent_id} registered with skills: {skills}")
-
-    def update_agent_status(self, agent_id, status):
-        """
-        Updates an agent's availability status.
-        :param agent_id: The agent to update.
-        :param status: New status ('Available', 'Busy', 'Offline').
-        """
-        if agent_id in self.agents:
-            self.agents[agent_id]["status"] = status
-            print(f"Agent {agent_id} is now {status}.")
-        else:
-            print(f"Agent {agent_id} not found.")
-
-    def get_available_agents(self, required_skills):
-        """
-        Returns a list of agents that are available and have the required skills.
-        :param required_skills: A set of skills required for the task.
-        :return: List of suitable agents.
-        """
-        available_agents = [
-            agent_id for agent_id, info in self.agents.items()
-            if info["status"] == "Available" and required_skills.issubset(info["skills"])
-        ]
-        return available_agents
-
-    def assign_task(self, task_id, required_skills):
-        """
-        Assigns a task to an available agent based on skill matching and load balancing.
-        :param task_id: The ID of the task.
-        :param required_skills: The set of skills required for the task.
-        :return: Assigned agent ID or None if no suitable agent is found.
-        """
-        suitable_agents = self.get_available_agents(required_skills)
-        if not suitable_agents:
-            print(f"No available agents for task {task_id} requiring {required_skills}.")
-            return None
-
-        assigned_agent = min(suitable_agents, key=lambda a: self.agents[a]["task_count"])
-        self.agents[assigned_agent]["status"] = "Busy"
-        self.agents[assigned_agent]["task_count"] += 1
-
-        print(f"Task {task_id} assigned to Agent {assigned_agent}.")
-        return assigned_agent
-
-    def release_agent(self, agent_id):
-        """
-        Marks an agent as available again after completing a task.
-        :param agent_id: The ID of the agent to release.
-        """
-        if agent_id in self.agents:
-            self.agents[agent_id]["task_count"] = max(0, self.agents[agent_id]["task_count"] - 1)
-            if self.agents[agent_id]["task_count"] == 0:
-                self.agents[agent_id]["status"] = "Available"
-            print(f"Agent {agent_id} is now available.")
-        else:
-            print(f"Agent {agent_id} not found.")
+    def register_agent(self, name, capabilities=None):
+        """Registers a new agent."""
+        agent = Agent(name, capabilities)
+        self.agents.append(agent)
+        print(f"🆕 Registered Agent: {name}")
 
     def list_agents(self):
-        """Prints all registered agents and their statuses."""
-        for agent_id, info in self.agents.items():
-            print(f"Agent {agent_id}: {info}")
+        """Lists all registered agents."""
+        return [(agent.name, agent.status, agent.capabilities) for agent in self.agents]
 
+    def assign_task(self, task):
+        """Assigns a task to an available agent."""
+        with self.lock:
+            for agent in self.agents:
+                if agent.status == "Idle":
+                    threading.Thread(target=agent.assign_task, args=(task,)).start()
+                    return
+            print(f"🔄 No idle agents available, queuing task: {task}")
+            self.task_queue.put(task)
+
+    def process_task_queue(self):
+        """Processes queued tasks when agents become available."""
+        while True:
+            if not self.task_queue.empty():
+                for agent in self.agents:
+                    if agent.status == "Idle":
+                        task = self.task_queue.get()
+                        threading.Thread(target=agent.assign_task, args=(task,)).start()
+
+    def start_task_queue_monitor(self):
+        """Starts monitoring the task queue in a separate thread."""
+        threading.Thread(target=self.process_task_queue, daemon=True).start()
