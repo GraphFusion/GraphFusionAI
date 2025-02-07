@@ -133,8 +133,11 @@ class AgentManager:
             dependent_task = self.task_dependencies[dependent_task_name]
             if dependent_task.is_ready(self.completed_tasks):
                 print(f"🚀 Now executing dependent task: {dependent_task.name}")
-                self.assign_task(self.task_dependencies.pop(dependent_task_name))
-
+                task_to_pop = self.task_dependencies.pop(dependent_task_name, None) 
+                if task_to_pop:
+                    self.assign_task(task_to_pop)
+            else:
+                print(f"⚠️ Task '{dependent_task_name}' no longer exists in dependencies.")
 
     def start_task_queue_monitor(self):
         """Starts monitoring the task queue in a separate thread."""
