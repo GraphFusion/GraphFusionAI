@@ -10,66 +10,93 @@ from task_executor import TaskExecutor
 from scheduler import Scheduler
 from agent_manager import AgentManager
 
-logging.basicConfig(level=logging.INFO)
-
 class TaskManager:
-    """Graph-powered Task Manager for AI Agents."""
+    """Graph-powered task manager for orchestrating AI agent workflows."""
+    
+    def __init__(self, dynamic_agents=True, enable_scheduling=True):
+        """
+        Initializes the TaskManager with integrated components.
 
-    def __init__(self):
+        Args:
+            dynamic_agents (bool): If True, agents are dynamically assigned.
+            enable_scheduling (bool): If True, enables task scheduling.
+        """
         self.task_graph = TaskGraph()
-        self.task_executor = TaskExecutor(self.task_graph)  # Pass the task_graph here
-        self.scheduler = Scheduler(self.agent_manager)
-        self.agent_manager = AgentManager()
+        self.agent_manager = AgentManager(dynamic=dynamic_agents)
+        self.executor = TaskExecutor()
+        self.scheduler = Scheduler(agent_manager=self.agent_manager, task_graph=self.task_graph) if enable_scheduling else None
 
-    def create_task(self, name, priority="medium", dependencies=None):
-        """Creates a task and adds it to the task graph."""
-        try:
-            task = self.task_graph.add_task(name, priority, dependencies)
-            logging.info(f"Task {name} created with priority {priority}")
-            return task
-        except Exception as e:
-            logging.error(f"Failed to create task {name}: {e}")
-            raise
+    def add_task(self, task_name, dependencies=None, priority=0):
+        """
+        Adds a task to the system with optional dependencies and priority.
 
-    def assign_task(self, task, agent_name):
-        """Assigns a task to an available agent."""
-        try:
-            agent = self.agent_manager.get_agent(agent_name)
-            if agent:
-                agent.assign(task)
-                logging.info(f"Task {task} assigned to agent {agent_name}")
-                return agent
-            logging.warning(f"No available agent found for task {task}")
-            return None
-        except Exception as e:
-            logging.error(f"Failed to assign task {task} to agent {agent_name}: {e}")
-            raise
+        Args:
+            task_name (str): The name of the task.
+            dependencies (list, optional): List of dependent tasks.
+            priority (int, optional): Task priority (lower value = higher priority).
+        """
+        self.task_graph.add_task(task_name)
+        if dependencies:
+            for dep in dependencies:
+                self.task_graph.add_dependency(task_name, dep)
+        if self.scheduler:
+            self.scheduler.add_task(task_name, priority)
 
-    async def execute_task(self, task):
-        """Executes a task through an assigned agent."""
-        try:
-            result = await self.task_executor.run(task)
-            logging.info(f"Task {task} executed successfully")
-            return result
-        except Exception as e:
-            logging.error(f"Failed to execute task {task}: {e}")
-            raise
+    def run_task(self, task_name):
+        """
+        Runs a single task by assigning it to an agent.
 
-    async def graph_powered_task(self, task_name, agent_name):
-        """Unified function for graph-powered task execution."""
-        try:
-            task = self.create_task(task_name)
-            agent = self.assign_task(task, agent_name)
-            if agent:
-                result = await self.execute_task(task)
-                return result
-            return f"No available agent for {task_name}"
-        except Exception as e:
-            logging.error(f"Error in graph-powered task {task_name}: {e}")
-            raise
+        Args:
+            task_name (str): The task to execute.
+        """
+        agent = self.agent_manager.get_available_agent()
+        if agent:
+            self.executor.execute(agent, task_name)
+        else:
+            print(f"No available agents for '{task_name}', retrying...")
+            self.scheduler.schedule_task(task_name) if self.scheduler else None
 
-# Example usage
-if __name__ == "__main__":
-    task_manager = TaskManager()
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(task_manager.graph_powered_task("example_task", "agent_1"))
+    def execute_all(self):
+        """Executes all tasks based on dependencies and scheduling."""
+        if self.scheduler:
+            self.scheduler.execute_all()
+        else:
+            execution_order = self.task_graph.topological_sort()
+            for task in execution_order:
+                self.run_task(task)
+
+    def visualize(self):
+        """Displays the task graph and scheduled tasks."""
+        self.task_graph.visualize()
+        if self.scheduler:
+            self.scheduler.visualize_schedule()
+
+    @staticmethod
+    def graph_powered_task():
+        """
+        Returns an instance of TaskManager for easy import and use.
+        
+        Example:
+            from graphfusionai import TaskManager
+            task_manager = TaskManager.graph_powered_task()
+        """
+        return TaskManager()
+    
+
+# Example Usage
+# Initialize Task Manager
+task_manager = TaskManager.graph_powered_task()
+
+# Add tasks with dependencies
+task_manager.add_task("Data Preprocessing")
+task_manager.add_task("Feature Engineering", dependencies=["Data Preprocessing"])
+task_manager.add_task("Model Training", dependencies=["Feature Engineering"])
+task_manager.add_task("Model Evaluation", dependencies=["Model Training"], priority=1)
+
+# Run all tasks
+task_manager.execute_all()
+
+# Visualize dependencies
+task_manager.visualize()
+
+
