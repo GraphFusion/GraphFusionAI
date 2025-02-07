@@ -25,7 +25,7 @@ class Agent:
             self.current_task = task
             self.status = "Busy"
             print(f"🚀 {self.name} started task: {task.name} (Priority: {task.priority})")
-            time.sleep(task.duration)  # Simulate task execution
+            time.sleep(task.duration) 
             self.complete_task()
         else:
             print(f"⚠️ {self.name} is busy with another task.")
