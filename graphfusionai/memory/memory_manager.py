@@ -1,9 +1,9 @@
 import torch
 from typing import Dict, List, Any, Optional
-from .dynamic_memory_cell import DynamicMemoryCell
-from .retrieval import MemoryRetrieval
-from .self_healing import SelfHealing
-from .embeddings import EmbeddingModel
+from dynamic_memory_cell import DynamicMemoryCell
+from retrieval import MemoryRetrieval
+from self_healing import SelfHealing
+from embeddings import EmbeddingModel
 
 class MemoryManager:
     """
