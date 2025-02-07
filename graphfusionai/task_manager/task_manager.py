@@ -1,11 +1,14 @@
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import logging
+import asyncio
+from task_graph import TaskGraph
+from task_executor import TaskExecutor
+from scheduler import Scheduler
+from agent_manager import AgentManager
 
-from .task_graph import TaskGraph
-from .task_executor import TaskExecutor
-from .scheduler import Scheduler
-from .agent_manager import AgentManager
+logging.basicConfig(level=logging.INFO)
 
 class TaskManager:
     """Graph-powered Task Manager for AI Agents."""
@@ -18,27 +21,53 @@ class TaskManager:
 
     def create_task(self, name, priority="medium", dependencies=None):
         """Creates a task and adds it to the task graph."""
-        return self.task_graph.add_task(name, priority, dependencies)
+        try:
+            task = self.task_graph.add_task(name, priority, dependencies)
+            logging.info(f"Task {name} created with priority {priority}")
+            return task
+        except Exception as e:
+            logging.error(f"Failed to create task {name}: {e}")
+            raise
 
     def assign_task(self, task, agent_name):
         """Assigns a task to an available agent."""
-        agent = self.agent_manager.get_agent(agent_name)
-        if agent:
-            agent.assign(task)
-            return agent
-        return None
+        try:
+            agent = self.agent_manager.get_agent(agent_name)
+            if agent:
+                agent.assign(task)
+                logging.info(f"Task {task} assigned to agent {agent_name}")
+                return agent
+            logging.warning(f"No available agent found for task {task}")
+            return None
+        except Exception as e:
+            logging.error(f"Failed to assign task {task} to agent {agent_name}: {e}")
+            raise
 
-    def execute_task(self, task):
+    async def execute_task(self, task):
         """Executes a task through an assigned agent."""
-        return self.task_executor.run(task)
+        try:
+            result = await self.task_executor.run(task)
+            logging.info(f"Task {task} executed successfully")
+            return result
+        except Exception as e:
+            logging.error(f"Failed to execute task {task}: {e}")
+            raise
 
-    def graph_powered_task(self):
-        """Returns a unified function for graph-powered task execution."""
-        def run(task_name, agent_name):
+    async def graph_powered_task(self, task_name, agent_name):
+        """Unified function for graph-powered task execution."""
+        try:
             task = self.create_task(task_name)
             agent = self.assign_task(task, agent_name)
             if agent:
-                return self.execute_task(task)
+                result = await self.execute_task(task)
+                return result
             return f"No available agent for {task_name}"
-        
-        return run
+        except Exception as e:
+            logging.error(f"Error in graph-powered task {task_name}: {e}")
+            raise
+
+# Example usage
+if __name__ == "__main__":
+    task_manager = TaskManager()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(task_manager.graph_powered_task("example_task", "agent_1"))
