@@ -36,14 +36,6 @@ class Agent:
         self.current_task = None
         self.status = "Idle"
 
-
-    #def complete_task(self):
-        #"""Marks task as completed."""
-        #print(f"✅ {self.name} completed task: {self.current_task.name}")
-        #self.current_task.mark_completed()
-        #self.current_task = None
-        #self.status = "Idle"
-
 class Task:
     """Represents a task with dependencies and required capabilities."""
     
