@@ -1,9 +1,12 @@
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 from typing import Dict, List, Any, Optional
-from dynamic_memory_cell import DynamicMemoryCell
-from retrieval import MemoryRetrieval
-from self_healing import SelfHealing
-from embeddings import EmbeddingModel
+from memory.dynamic_memory_cell import DynamicMemoryCell
+from memory.retrieval import MemoryRetrieval
+from memory.self_healing import SelfHealing
+from memory.embeddings import EmbeddingModel
 
 class MemoryManager:
     """
