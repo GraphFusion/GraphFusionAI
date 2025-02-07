@@ -32,7 +32,7 @@ class Agent:
     def complete_task(self, manager):
         """Marks task as completed and notifies manager."""
         print(f"✅ {self.name} completed task: {self.current_task.name}")
-        manager.mark_task_completed(self.current_task)  # Notify manager
+        manager.mark_task_completed(self.current_task)  
         self.current_task = None
         self.status = "Idle"
 
