@@ -36,6 +36,7 @@ class Agent:
         self.current_task = None
         self.status = "Idle"
 
+
 class Task:
     """Represents a task with dependencies and required capabilities."""
     
