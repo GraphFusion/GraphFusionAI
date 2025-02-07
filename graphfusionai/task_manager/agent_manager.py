@@ -24,7 +24,7 @@ class Agent:
             self.current_task = task
             self.status = "Busy"
             print(f"🚀 {self.name} started task: {task['name']} (Priority: {task['priority']})")
-            time.sleep(task['duration'])  # Simulate task execution time
+            time.sleep(task['duration'])  
             self.complete_task()
         else:
             print(f"⚠️ {self.name} is busy with another task.")
@@ -40,7 +40,7 @@ class AgentManager:
     
     def __init__(self):
         self.agents = []
-        self.task_queue = PriorityQueue()  # Stores tasks with priority
+        self.task_queue = PriorityQueue()  
         self.lock = threading.Lock()
 
     def register_agent(self, name, capabilities=None):
@@ -84,7 +84,7 @@ class AgentManager:
                             print(f"📌 Assigning queued task: {task['name']} to {agent.name}")
                             threading.Thread(target=agent.assign_task, args=(task,)).start()
                             break
-            time.sleep(1)  # Prevents excessive CPU usage
+            time.sleep(1)  
 
     def start_task_queue_monitor(self):
         """Starts monitoring the task queue in a background thread."""
