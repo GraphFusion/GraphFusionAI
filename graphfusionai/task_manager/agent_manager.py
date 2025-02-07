@@ -90,19 +90,3 @@ class AgentManager:
         """Starts monitoring the task queue in a background thread."""
         threading.Thread(target=self.process_task_queue, daemon=True).start()
 
-# Example Usage
-if __name__ == "__main__":
-    manager = AgentManager()
-    
-    # Register AI Agents with capabilities
-    manager.register_agent("Agent Alpha", capabilities=["ML Training", "Data Processing"])
-    manager.register_agent("Agent Beta", capabilities=["Data Processing", "Summarization"])
-    
-    # Start queue monitoring in the background
-    manager.start_task_queue_monitor()
-
-    # Assign tasks with different priorities
-    manager.assign_task("Data Cleaning", duration=3, priority=2)
-    manager.assign_task("Model Training", duration=5, priority=1)
-    manager.assign_task("Report Summarization", duration=2, priority=3)
-    manager.assign_task("Anomaly Detection", duration=4, priority=1)
