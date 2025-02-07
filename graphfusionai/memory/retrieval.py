@@ -23,7 +23,7 @@ class MemoryRetrieval:
 
         for key, memory in memory_store.items():
             memory_vector = torch.tensor([float(x) for x in key.strip("()").split(",")])
-            similarity = 1 - cosine(query_vector.tolist(), memory_vector.tolist())  # Cosine similarity
+            similarity = 1 - cosine(query_vector.tolist(), memory_vector.tolist())  
             scores.append((key, similarity))
 
         scores.sort(key=lambda x: x[1], reverse=True)
