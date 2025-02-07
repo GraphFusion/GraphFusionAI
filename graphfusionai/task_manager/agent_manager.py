@@ -19,16 +19,15 @@ class Agent:
         self.status = "Idle"
         self.current_task = None
 
-    def assign_task(self, task):
+    def assign_task(self, task, manager):
         """Assigns a task to the agent."""
         if self.status == "Idle":
             self.current_task = task
             self.status = "Busy"
-            print(f"🚀 {self.name} started task: {task.name} (Priority: {task.priority})")
-            time.sleep(task.duration) 
-            self.complete_task()
-        else:
-            print(f"⚠️ {self.name} is busy with another task.")
+            print(f"🚀 {self.name} started task: {task}")
+            time.sleep(2)  
+            self.complete_task(manager)  # ✅ Pass 'manager' here
+
 
     def complete_task(self, manager):
         """Marks task as completed and notifies manager."""
@@ -74,6 +73,15 @@ class Task:
         """Marks the task as completed."""
         self.completed = True
 
+    def __str__(self):
+        """String representation for user-friendly printing."""
+        return f"{self.name} (Priority: {self.priority}, Duration: {self.duration}s)"
+
+    def __repr__(self):
+        """Debugging-friendly representation."""
+        return f"Task(name={self.name}, priority={self.priority}, duration={self.duration}, dependencies={self.dependencies})"
+
+
 class AgentManager:
     """Manages multiple AI agents and task assignments."""
     
@@ -104,7 +112,7 @@ class AgentManager:
 
             for agent in self.agents:
                 if agent.status == "Idle" and any(skill in agent.capabilities for skill in task.required_capabilities):
-                    threading.Thread(target=agent.assign_task, args=(task,)).start()
+                    threading.Thread(target=agent.assign_task, args=(task, self)).start()  # ✅ Pass 'self' as 'manager'
                     return
             
             print(f"🔄 No suitable idle agents available, queuing task: {task.name}")
