@@ -57,7 +57,7 @@ class OpenAIClient(BaseLLM):
             response = openai.ChatCompletion.create(
                 model=self.model,
                 messages=messages,
-                api_key=self.api_key,  # Avoid setting global state
+                api_key=self.api_key,  
                 **kwargs
             )
             return response["choices"][0]["message"]["content"]
