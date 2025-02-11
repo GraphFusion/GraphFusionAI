@@ -57,7 +57,6 @@ class AgentBuilder:
         if not all([llm_provider, api_key, model]):
             raise ValueError("Missing required LLM configuration parameters")
 
-        # Initialize memory manager instead of DynamicMemoryCell
         memory_manager = MemoryManager(
             input_dim=config.get("memory", {}).get("input_dim", 256),
             memory_dim=config.get("memory", {}).get("memory_dim", 512),
