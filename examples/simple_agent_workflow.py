@@ -25,15 +25,15 @@ def main():
     model = "gpt2"  # Replace with your preferred Hugging Face model
     memory_manager = MemoryManager()
 
-    # Create manager agent
-    name = "manager"
-    manager = ManagerAgent(name, graph, None, llm_provider, model, memory_manager, n_workers)
-
     # Create worker agents
     workers = [
         WorkerAgent(f"worker_{i}", graph, None, llm_provider, model, memory_manager, action_dim)
         for i in range(n_workers)
     ]
+
+    # Create manager agent and pass the worker agents as an argument
+    name = "manager"
+    manager = ManagerAgent(name, graph, None, llm_provider, model, memory_manager, n_workers, workers)
 
     # Add agents to the graph
     graph.add_node("manager", {"type": "manager"})
