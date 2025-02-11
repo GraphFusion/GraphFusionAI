@@ -1,11 +1,12 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from typing import Any, Dict, Type, Union
 from graphfusionai.agents.base_agent import BaseAgent
 from graphfusionai.core.graph import GraphNetwork
 from graphfusionai.core.knowledge_graph import KnowledgeGraph
-from graphfusionai.core.query_engine import DynamicMemoryCell
+from graphfusionai.memory.memory_manager import MemoryManager  # Updated to MemoryManager
 from builder.validators import validate_config
 from graphfusionai.tools.registry import ToolRegistry
 
@@ -48,20 +49,33 @@ class AgentBuilder:
         """
         validate_config(config)
 
-        memory_config = config.get("memory", {})
-        memory_cell = DynamicMemoryCell(
-            input_dim=memory_config.get("input_dim", 256),
-            memory_dim=memory_config.get("memory_dim", 512),
-            context_dim=memory_config.get("context_dim", 128)
+        # Extract required fields
+        llm_provider = config.get("llm_provider")
+        api_key = config.get("api_key")
+        model = config.get("model")
+
+        if not all([llm_provider, api_key, model]):
+            raise ValueError("Missing required LLM configuration parameters")
+
+        # Initialize memory manager instead of DynamicMemoryCell
+        memory_manager = MemoryManager(
+            input_dim=config.get("memory", {}).get("input_dim", 256),
+            memory_dim=config.get("memory", {}).get("memory_dim", 512),
+            context_dim=config.get("memory", {}).get("context_dim", 128)
         )
 
+        # Instantiate the agent with all required parameters
         agent = agent_type(
             name=name,
             graph_network=self.graph_network,
-            knowledge_graph=self.knowledge_graph
+            knowledge_graph=self.knowledge_graph,
+            llm_provider=llm_provider,
+            api_key=api_key,
+            model=model,
+            memory_manager=memory_manager  # Corrected memory manager
         )
-        agent.memory_cell = memory_cell
 
+        # Register tools
         tools = config.get("tools", [])
         for tool_name in tools:
             tool = ToolRegistry.get_tool(tool_name)
@@ -70,4 +84,3 @@ class AgentBuilder:
             agent.add_tool(tool())
 
         return agent
-
