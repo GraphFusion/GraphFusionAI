@@ -1,74 +1,44 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from .base_agent import BaseAgent
 
-import torch
-from graphfusionai.agents.worker_agent import WorkerAgent
-from graphfusionai.agents.manager_agent import ManagerAgent
-from graphfusionai.core.graph import GraphNetwork
-from graphfusionai.core.knowledge_graph import KnowledgeGraph
-from graphfusionai.memory.memory_manager import MemoryManager  
-from graphfusionai.llm import create_llm  
+class WorkerAgent(BaseAgent):
+    def __init__(self, 
+                 name: str, 
+                 graph_network, 
+                 knowledge_graph, 
+                 llm_provider: str, 
+                 api_key: str, 
+                 model: str, 
+                 memory_manager, 
+                 action_dim: int):
+        """
+        Initializes the WorkerAgent, which extends BaseAgent.
+        """
+        super().__init__(name, graph_network, knowledge_graph, llm_provider, api_key, model, memory_manager)  
+        
+        self.action_dim = action_dim
 
-def main():
-    # Initializing dimensions
-    input_dim = 64
-    memory_dim = 128
-    context_dim = 96
-    action_dim = 32  # Define action_dim
-    n_workers = 4
-
-    # Create graph network
-    graph = GraphNetwork(feature_dim=input_dim, hidden_dim=memory_dim)
-
-    # LLM provider, model, and memory manager
-    llm_provider = "huggingface"
-    model = "gpt2"  # Replace with your preferred Hugging Face model
-    memory_manager = MemoryManager()
-
-    # Create worker agents (passing None for api_key)
-    workers = [
-        WorkerAgent(
-            f"worker_{i}",
-            graph,
-            None,  # Pass None for knowledge_graph if not used
-            llm_provider,
-            None,  # Explicitly pass None for api_key
-            model,
-            memory_manager,
-            action_dim
-        )
-        for i in range(n_workers)
-    ]
-
-    # Create manager agent and pass the worker agents as an argument
-    name = "manager"
-    manager = ManagerAgent(name, graph, None, llm_provider, None, model, memory_manager, n_workers, workers)
-
-    # Add agents to the graph
-    graph.add_node("manager", {"type": "manager"})
-    for i, worker in enumerate(workers):
-        graph.add_node(f"worker_{i}", {"type": "worker"})
-        graph.add_edge("manager", f"worker_{i}", edge_type="manages")
-
-    # Simulation loop
-    for step in range(100):
-        # Generate some observation (simulated input data)
-        observation = torch.randn(input_dim)
-
-        # Manager assigns tasks
-        tasks = [torch.randn(context_dim) for _ in range(n_workers)]
-
-        # Workers process tasks
-        worker_responses = []
-        for worker, task in zip(workers, tasks):
-            worker.process_input(f"Task: {task}")
-            action = worker.decide(f"Task: {task}")
-            worker_responses.append(action)
-
-        # Manager collects responses
-        for response in worker_responses:
-            print(f"[Manager] Received response: {response}")
-
-if __name__ == "__main__":
-    main()
+    def process_input(self, input_data: str) -> None:
+        """
+        Processes specific tasks using the provided data.
+        """
+        print(f"[Worker {self.name}] Processing input: {input_data}")
+    
+    def decide(self, input_data: str) -> str:
+        """
+        Simple decision-making for task-specific actions.
+        """
+        print(f"[Worker {self.name}] Deciding next action for: {input_data}")
+        return f"Action based on {input_data}"
+    
+    def communicate(self, other_agent: "BaseAgent", message: str) -> None:
+        """
+        Communicates with another agent.
+        """
+        print(f"[Worker {self.name}] Sending message to {other_agent.name}: {message}")
+    
+    def complete_task(self):
+        """
+        Marks the worker as available for a new task after completing the current one.
+        """
+        self.is_available = True
+        print(f"[{self.name}] Task completed and ready for new task!")
