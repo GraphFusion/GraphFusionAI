@@ -14,10 +14,8 @@ class ManagerAgent(BaseAgent):
         """
         Initializes the ManagerAgent, which extends BaseAgent.
         """
-        # Pass all required arguments to the parent constructor
         super().__init__(name, graph_network, knowledge_graph, llm_provider, api_key, model, memory_manager)
         
-        # Initialize additional parameters specific to ManagerAgent
         self.worker_agents = worker_agents
 
     def assign_task(self, task: str, worker_name: str) -> None:
