@@ -10,15 +10,18 @@ from .anthropic_client import AnthropicClient
 from .llama_client import LLaMAClient
 
 def create_llm(provider: str, model: str, **kwargs):
+    if 'api_key' in kwargs:
+        print(f"API Key found in kwargs for {provider}.")
     if provider == "huggingface":
         return HuggingFaceLLM(model, **kwargs)
     elif provider == "litellm":
         return LiteLLM(model, **kwargs)
-    if provider == "openai":
+    elif provider == "openai":
+        # Ensure api_key is only passed once
         return OpenAIClient(model, **kwargs)
-    if provider == "anthropic":
+    elif provider == "anthropic":
         return AnthropicClient(model, **kwargs)
-    if provider == "llama":
+    elif provider == "llama":
         return LLaMAClient(model, **kwargs)
     else:
         raise ValueError(f"Unknown LLM provider: {provider}")
