@@ -6,6 +6,8 @@ import torch
 from graphfusionai.agents.worker_agent import WorkerAgent
 from graphfusionai.agents.manager_agent import ManagerAgent
 from graphfusionai.core.graph import GraphNetwork
+from graphfusionai.memory.memory_manager import MemoryManager  # Ensure MemoryManager is imported
+from graphfusionai.llm import create_llm  # Assuming a method for creating LLM client
 
 def main():
     # Initializing dimensions
@@ -18,15 +20,19 @@ def main():
     # Create graph network
     graph = GraphNetwork(feature_dim=input_dim, hidden_dim=memory_dim)
 
+    # LLM provider, API key, model, and memory manager
+    llm_provider = "openai"  
+    api_key = "your_api_key_here"  # Replace with your API key
+    model = "gpt-3.5-turbo"  # Replace with the model you wish to use
+    memory_manager = MemoryManager()  # Initialize memory manager
+
     # Create manager agent
     name = "manager"
-    graph_network = graph
-    knowledge_graph = None  # Use your actual KnowledgeGraph if available
-    manager = ManagerAgent(name, graph_network, knowledge_graph, n_workers)
+    manager = ManagerAgent(name, graph, None, llm_provider, api_key, model, memory_manager, n_workers)
 
     # Create worker agents
     workers = [
-        WorkerAgent(f"worker_{i}", graph_network, knowledge_graph, action_dim)
+        WorkerAgent(f"worker_{i}", graph, None, llm_provider, api_key, model, memory_manager, action_dim)
         for i in range(n_workers)
     ]
 
