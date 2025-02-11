@@ -2,6 +2,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+import requests
 from .base_llm import BaseLLM
 
 class AnthropicClient(BaseLLM):
