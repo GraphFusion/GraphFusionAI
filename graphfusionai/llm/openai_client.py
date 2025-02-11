@@ -63,7 +63,7 @@ class OpenAIClient(BaseLLM):
             return response["choices"][0]["message"]["content"]
         except openai.error.OpenAIError as e:
             logger.error(f"OpenAI API error: {str(e)}")
-            return None  # Returning None instead of raising an error
+            return None  
         except Exception as e:
             logger.exception(f"Unexpected error in OpenAIClient: {str(e)}")
             return None
