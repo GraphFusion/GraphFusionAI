@@ -64,7 +64,6 @@ class AgentBuilder:
             context_dim=config.get("memory", {}).get("context_dim", 128)
         )
 
-        # Instantiate the agent with all required parameters
         agent = agent_type(
             name=name,
             graph_network=self.graph_network,
@@ -72,10 +71,9 @@ class AgentBuilder:
             llm_provider=llm_provider,
             api_key=api_key,
             model=model,
-            memory_manager=memory_manager  # Corrected memory manager
+            memory_manager=memory_manager  
         )
 
-        # Register tools
         tools = config.get("tools", [])
         for tool_name in tools:
             tool = ToolRegistry.get_tool(tool_name)
