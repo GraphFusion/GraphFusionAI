@@ -14,7 +14,7 @@ def main():
     input_dim = 64
     memory_dim = 128
     context_dim = 96
-    action_dim = 32
+    action_dim = 32  # Define action_dim
     n_workers = 4
 
     # Create graph network
@@ -25,7 +25,7 @@ def main():
     model = "gpt2"  # Replace with your preferred Hugging Face model
     memory_manager = MemoryManager()
 
-    # Create worker agents
+    # Create worker agents and pass the action_dim
     workers = [
         WorkerAgent(f"worker_{i}", graph, None, llm_provider, model, memory_manager, action_dim)
         for i in range(n_workers)
