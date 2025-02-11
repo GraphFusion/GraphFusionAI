@@ -17,7 +17,6 @@ def create_llm(provider: str, model: str, **kwargs):
     elif provider == "litellm":
         return LiteLLM(model, **kwargs)
     elif provider == "openai":
-        # Ensure api_key is only passed once
         return OpenAIClient(model, **kwargs)
     elif provider == "anthropic":
         return AnthropicClient(model, **kwargs)
