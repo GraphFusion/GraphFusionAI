@@ -5,7 +5,6 @@ import torch
 from typing import Dict, List, Any, Optional
 from graphfusionai.memory.dynamic_memory_cell import DynamicMemoryCell
 from graphfusionai.memory.retrieval import MemoryRetrieval
-from graphfusionai.memory.self_healing import SelfHealing
 from graphfusionai.memory.embeddings import EmbeddingModel
 
 class MemoryManager:
@@ -25,7 +24,6 @@ class MemoryManager:
         """
         self.memory_cell = DynamicMemoryCell(input_dim, memory_dim, context_dim)
         self.memory_retrieval = MemoryRetrieval()
-        self.self_healing = SelfHealing()
         self.embedding_model = EmbeddingModel()
 
         self.memory_store: Dict[str, Any] = {}
@@ -76,9 +74,4 @@ class MemoryManager:
             return True
         return False
 
-    def prune_memory(self) -> None:
-        """
-        Runs self-healing to remove outdated or redundant memories.
-        """
-        self.memory_store = self.self_healing.clean_memory(self.memory_store)
-
+    
