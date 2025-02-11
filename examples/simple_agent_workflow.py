@@ -24,7 +24,7 @@ def main():
     llm_provider = "openai"  
     api_key = "your_api_key_here"  # Replace with your API key
     model = "gpt-3.5-turbo"  
-    memory_manager = MemoryManager()  # Initialize memory manager
+    memory_manager = MemoryManager()  
 
     # Create manager agent
     name = "manager"
