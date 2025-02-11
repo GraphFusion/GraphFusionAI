@@ -13,6 +13,8 @@ from graphfusionai.llm import create_llm
 
 def main():
     # Define dimensions
+    entity_dim = 32
+    relation_dim = 16
     input_dim = 64
     memory_dim = 128
     context_dim = 96
@@ -21,7 +23,7 @@ def main():
 
     # Create graph network and knowledge graph
     graph = GraphNetwork(feature_dim=input_dim, hidden_dim=memory_dim)
-    knowledge_graph = KnowledgeGraph()  # Ensure this is properly initialized
+    knowledge_graph = KnowledgeGraph(entity_dim=entity_dim, relation_dim=relation_dim)  # Ensure this is properly initialized
 
     # LLM provider, model, and memory manager
     llm_provider = "huggingface"
