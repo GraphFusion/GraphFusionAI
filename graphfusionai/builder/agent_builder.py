@@ -6,7 +6,7 @@ from typing import Any, Dict, Type, Union
 from graphfusionai.agents.base_agent import BaseAgent
 from graphfusionai.core.graph import GraphNetwork
 from graphfusionai.core.knowledge_graph import KnowledgeGraph
-from graphfusionai.memory.memory_manager import MemoryManager  # Updated to MemoryManager
+from graphfusionai.memory.memory_manager import MemoryManager  
 from builder.validators import validate_config
 from graphfusionai.tools.registry import ToolRegistry
 
