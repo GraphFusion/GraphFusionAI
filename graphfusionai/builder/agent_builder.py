@@ -9,6 +9,7 @@ from graphfusionai.core.knowledge_graph import KnowledgeGraph
 from graphfusionai.memory.memory_manager import MemoryManager  
 from builder.validators import validate_config
 from graphfusionai.tools.registry import ToolRegistry
+from graphfusionai.llm import create_llm
 
 class AgentBuilder:
     """
