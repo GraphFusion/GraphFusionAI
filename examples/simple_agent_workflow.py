@@ -22,7 +22,7 @@ def main():
 
     # LLM provider, API key, model, and memory manager
     llm_provider = "openai"  
-    api_key = "your_api_key_here"  # Replace with your API key
+    api_key = "your_api_key_here"  
     model = "gpt-3.5-turbo"  
     memory_manager = MemoryManager()  
 
