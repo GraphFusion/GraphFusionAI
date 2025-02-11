@@ -49,7 +49,6 @@ class AgentBuilder:
         """
         validate_config(config)
 
-        # Extract required fields
         llm_provider = config.get("llm_provider")
         api_key = config.get("api_key")
         model = config.get("model")
