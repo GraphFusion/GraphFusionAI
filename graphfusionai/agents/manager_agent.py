@@ -2,8 +2,22 @@ from .base_agent import BaseAgent
 from typing import List
 
 class ManagerAgent(BaseAgent):
-    def __init__(self, name: str, graph_network, knowledge_graph, worker_agents: List[BaseAgent]):
-        super().__init__(name, graph_network, knowledge_graph)
+    def __init__(self, 
+                 name: str, 
+                 graph_network, 
+                 knowledge_graph, 
+                 llm_provider: str, 
+                 api_key: str, 
+                 model: str, 
+                 memory_manager, 
+                 worker_agents: List[BaseAgent]):
+        """
+        Initializes the ManagerAgent, which extends BaseAgent.
+        """
+        # Pass all required arguments to the parent constructor
+        super().__init__(name, graph_network, knowledge_graph, llm_provider, api_key, model, memory_manager)
+        
+        # Initialize additional parameters specific to ManagerAgent
         self.worker_agents = worker_agents
 
     def assign_task(self, task: str, worker_name: str) -> None:
