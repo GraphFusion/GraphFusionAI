@@ -69,11 +69,9 @@ class KnowledgeGraph(nn.Module):
         if not context_entities:
             return self.entities[query_entity], None
 
-        #Prepare query and context tensors
         query = self.entities[query_entity].unsqueeze(0)
         context = torch.stark([self.entities[e] for e in context_entities])
         
-        # Apply attention mechanism
         attended_context, attention_weights = self.attention(
             query_entity.unsqueeze(0),
             context.unsqueeze(0),
