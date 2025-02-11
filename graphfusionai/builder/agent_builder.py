@@ -10,11 +10,14 @@ from graphfusionai.memory.memory_manager import MemoryManager
 from builder.validators import validate_config
 from graphfusionai.tools.registry import ToolRegistry
 from graphfusionai.llm import create_llm
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AgentBuilder:
     """
     A builder for dynamically creating agents based on specifications, 
-    including tools.
+    including tools and memory.
     """
 
     def __init__(self, graph_network: GraphNetwork, knowledge_graph: KnowledgeGraph):
@@ -27,6 +30,47 @@ class AgentBuilder:
         """
         self.graph_network = graph_network
         self.knowledge_graph = knowledge_graph
+
+    def _create_llm_instance(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Creates an LLM instance based on the configuration.
+
+        Args:
+            config (Dict[str, Any]): LLM configuration.
+
+        Returns:
+            Dict[str, Any]: LLM parameters.
+        """
+        llm_provider = config.get("llm_provider")
+        api_key = config.get("api_key")
+        model = config.get("model")
+
+        if not all([llm_provider, api_key, model]):
+            logger.error("Missing required LLM configuration parameters")
+            raise ValueError("Missing required LLM configuration parameters")
+
+        return {
+            "llm_provider": llm_provider,
+            "api_key": api_key,
+            "model": model
+        }
+
+    def _create_memory_manager(self, config: Dict[str, Any]) -> MemoryManager:
+        """
+        Creates a MemoryManager instance based on the configuration.
+
+        Args:
+            config (Dict[str, Any]): Memory configuration.
+
+        Returns:
+            MemoryManager: The initialized memory manager.
+        """
+        memory_config = config.get("memory", {})
+        return MemoryManager(
+            input_dim=memory_config.get("input_dim", 256),
+            memory_dim=memory_config.get("memory_dim", 512),
+            context_dim=memory_config.get("context_dim", 128)
+        )
 
     def create_agent(
         self,
@@ -49,27 +93,15 @@ class AgentBuilder:
             ValueError: If the configuration is invalid or tools are missing.
         """
         validate_config(config)
-
-        llm_provider = config.get("llm_provider")
-        api_key = config.get("api_key")
-        model = config.get("model")
-
-        if not all([llm_provider, api_key, model]):
-            raise ValueError("Missing required LLM configuration parameters")
-
-        memory_manager = MemoryManager(
-            input_dim=config.get("memory", {}).get("input_dim", 256),
-            memory_dim=config.get("memory", {}).get("memory_dim", 512),
-            context_dim=config.get("memory", {}).get("context_dim", 128)
-        )
+        
+        llm_params = self._create_llm_instance(config)
+        memory_manager = self._create_memory_manager(config)
 
         agent = agent_type(
             name=name,
             graph_network=self.graph_network,
             knowledge_graph=self.knowledge_graph,
-            llm_provider=llm_provider,
-            api_key=api_key,
-            model=model,
+            **llm_params,
             memory_manager=memory_manager  
         )
 
@@ -77,7 +109,8 @@ class AgentBuilder:
         for tool_name in tools:
             tool = ToolRegistry.get_tool(tool_name)
             if not tool:
-                raise ValueError(f"Invalid tool name: '{tool_name}'")
+                logger.warning(f"Invalid tool name: '{tool_name}', skipping...")
+                continue
             agent.add_tool(tool())
 
         return agent
