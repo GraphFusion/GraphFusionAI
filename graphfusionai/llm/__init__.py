@@ -1,4 +1,3 @@
-
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -10,8 +9,13 @@ from .anthropic_client import AnthropicClient
 from .llama_client import LLaMAClient
 
 def create_llm(provider: str, model: str, **kwargs):
+    if provider in ["huggingface", "llama"]:  
+        # Hugging Face and LLaMA do NOT need API keys, so remove it if present
+        kwargs.pop("api_key", None)  
+
     if 'api_key' in kwargs:
         print(f"API Key found in kwargs for {provider}.")
+
     if provider == "huggingface":
         return HuggingFaceLLM(model, **kwargs)
     elif provider == "litellm":
