@@ -6,8 +6,8 @@ import torch
 from graphfusionai.agents.worker_agent import WorkerAgent
 from graphfusionai.agents.manager_agent import ManagerAgent
 from graphfusionai.core.graph import GraphNetwork
-from graphfusionai.memory.memory_manager import MemoryManager  # Ensure MemoryManager is imported
-from graphfusionai.llm import create_llm  # Assuming a method for creating LLM client
+from graphfusionai.memory.memory_manager import MemoryManager  
+from graphfusionai.llm import create_llm  
 
 def main():
     # Initializing dimensions
