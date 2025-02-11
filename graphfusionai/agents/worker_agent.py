@@ -13,10 +13,8 @@ class WorkerAgent(BaseAgent):
         """
         Initializes the WorkerAgent, which extends BaseAgent.
         """
-        # Pass all required arguments to the parent constructor (BaseAgent)
         super().__init__(name, graph_network, knowledge_graph, llm_provider, api_key, model, memory_manager)  
         
-        # Initialize additional parameters specific to WorkerAgent
         self.action_dim = action_dim
 
     def process_input(self, input_data: str) -> None:
