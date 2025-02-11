@@ -52,10 +52,8 @@ class KnowledgeGraph(nn.Module):
     def query_subgraph(self, 
                       center_entity: str,
                       max_depth: int = 2) -> Tuple[nx.DiGraph, Dict[str, torch.Tensor]]:
-        # Extract subgraph around center entity
         subgraph = nx.ego_graph(self.graph, center_entity, radius=max_depth)
          
-         # Collect entity embeddings for subgraph
         entity_embeddings = {
             node: self.entities[node]
             for node in subgraph.nodes()
