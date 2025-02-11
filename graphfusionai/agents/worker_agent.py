@@ -1,9 +1,23 @@
 from .base_agent import BaseAgent
 
 class WorkerAgent(BaseAgent):
-    def __init__(self, name, graph_network, knowledge_graph, action_dim):
-        super().__init__(name, graph_network, knowledge_graph)  # Initialize BaseAgent
-        self.action_dim = action_dim  # New attribute for WorkerAgent
+    def __init__(self, 
+                 name: str, 
+                 graph_network, 
+                 knowledge_graph, 
+                 llm_provider: str, 
+                 api_key: str, 
+                 model: str, 
+                 memory_manager, 
+                 action_dim: int):
+        """
+        Initializes the WorkerAgent, which extends BaseAgent.
+        """
+        # Pass all required arguments to the parent constructor (BaseAgent)
+        super().__init__(name, graph_network, knowledge_graph, llm_provider, api_key, model, memory_manager)  
+        
+        # Initialize additional parameters specific to WorkerAgent
+        self.action_dim = action_dim
 
     def process_input(self, input_data: str) -> None:
         """
@@ -23,6 +37,10 @@ class WorkerAgent(BaseAgent):
         Communicates with another agent.
         """
         print(f"[Worker {self.name}] Sending message to {other_agent.name}: {message}")
+    
     def complete_task(self):
+        """
+        Marks the worker as available for a new task after completing the current one.
+        """
         self.is_available = True
         print(f"[{self.name}] Task completed and ready for new task!")
