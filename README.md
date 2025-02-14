@@ -18,7 +18,7 @@
 </h3>
 <br />
 
-# **GraphFusionAI 🚀 – The Graph-Based AI Agent Framework**  
+# **GraphFusionAI  – The Graph-Based AI Agent Framework**  
 
 ⚠️ **This project is in early development!** Expect bugs, incomplete features, and potential breaking changes. If you're contributing, **please read the codebase carefully** and help us improve it.  
 
