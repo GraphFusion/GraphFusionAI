@@ -109,15 +109,12 @@ Then open a **Pull Request (PR)** with a detailed description.
 - **Optimize Knowledge Graph Queries** – Improve search efficiency and update mechanisms.  
 
 ## **📌 Roadmap**  
-✅ **LLM Model Agnostic** (OpenAI, Anthropic, LLaMA, etc.)  
-✅ **Graph-Based Decision Making**  
-✅ **Self-Healing Memory**  
-✅ **Multi-Agent Communication**  
-🔜 **AutoML for Optimized Agent Performance**  
-🔜 **Integration with Hugging Face & LangChain**  
-
-## **📜 License**
-**MIT License** – Free to use & modify.  
+- **LLM Model Agnostic** (OpenAI, Anthropic, LLaMA, etc.)  
+- **Graph-Based Decision Making**  
+- **Self-Healing Memory**  
+- **Multi-Agent Communication**  
+- **AutoML for Optimized Agent Performance**  
+- **Integration with Hugging Face & LangChain**  
 
 ## **💬 Join the Discussion**
 Join the conversation, share feedback, and collaborate on new ideas:
