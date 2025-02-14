@@ -82,8 +82,6 @@ print(response)
 agent.update_graph([{"from": "AI", "to": "LLMs", "relation": "advancing"}])
 ```
 
----
-
 ## **⚠️ Contributing: Please Read Carefully!**  
 
 This project **is not stable yet!** There are **bugs, missing features, and breaking changes.** If you're contributing, please:  
@@ -103,16 +101,12 @@ git checkout -b feature-your-fix
 ```
 Then open a **Pull Request (PR)** with a detailed description.  
 
----
-
 ## **🔧 How You Can Help**
 - **Fix Memory System** – Improve memory retrieval, update logic, and self-healing.  
 - **Improve Agent Decision-Making** – Optimize reasoning steps and decision-tree logic.  
 - **Refactor LLM Response Handling** – Some responses are not structured properly.  
 - **Test Tool Integrations** – Make sure tools work correctly and return expected results.  
 - **Optimize Knowledge Graph Queries** – Improve search efficiency and update mechanisms.  
-
----
 
 ## **📌 Roadmap**  
 ✅ **LLM Model Agnostic** (OpenAI, Anthropic, LLaMA, etc.)  
@@ -122,17 +116,14 @@ Then open a **Pull Request (PR)** with a detailed description.
 🔜 **AutoML for Optimized Agent Performance**  
 🔜 **Integration with Hugging Face & LangChain**  
 
----
-
 ## **📜 License**
 **MIT License** – Free to use & modify.  
 
----
-
 ## **💬 Join the Discussion**
-💡 **Twitter**: [@GraphFusionAI](https://twitter.com/GraphFusionAI)  
-💡 **GitHub Discussions**: Open issues & collaborate!  
-💡 **Discord**: Coming soon!  
+Join the conversation, share feedback, and collaborate on new ideas:
+
+- **Discord**: [Join our community](https://discord.gg/zK94WvRjZT)
+- **GitHub Discussions**: [Start a thread](https://github.com/GraphFusion/GraphFusionAI/discussions)
 
 🚀 **Let's build the future of graph-based AI together!**
 
