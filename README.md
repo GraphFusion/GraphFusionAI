@@ -24,16 +24,14 @@
 
 GraphFusionAI is an **open-source AI framework** designed to build **graph-powered multi-agent systems** with **neural memory**, **dynamic knowledge graphs**, and **LLM integration**. It enables **autonomous, context-aware AI agents** that can learn, reason, and collaborate in real time.  
 
----
-
 ## **🌟 Features (Work in Progress)**  
-✅ **Graph-Based Agents** – AI agents that operate on knowledge graphs.  
-✅ **Neural Memory System** – Stores and retrieves contextual knowledge.  
-✅ **Multi-Agent Collaboration** – Agents interact, exchange knowledge, and optimize decisions.  
-✅ **LLM Integration** – Supports OpenAI, Anthropic, LLaMA, and LiteLLM for smart reasoning.  
-✅ **Tool-Based Extensibility** – Agents can use pluggable tools (search, diagnosis, etc.).  
-✅ **Self-Healing Mechanism** – Automatically prunes outdated or irrelevant memory.  
-✅ **Real-Time Learning** – Dynamically updates knowledge and adapts.  
+- **Graph-Based Agents** – AI agents that operate on knowledge graphs.  
+- **Neural Memory System** – Stores and retrieves contextual knowledge.  
+- **Multi-Agent Collaboration** – Agents interact, exchange knowledge, and optimize decisions.  
+- **LLM Integration** – Supports OpenAI, Anthropic, LLaMA, and LiteLLM for smart reasoning.  
+- **Tool-Based Extensibility** – Agents can use pluggable tools (search, diagnosis, etc.).  
+- **Self-Healing Mechanism** – Automatically prunes outdated or irrelevant memory.  
+- **Real-Time Learning** – Dynamically updates knowledge and adapts.  
 
 ⚠️ **Known Issues:**  
 - **Memory module is unstable** – Needs better handling of storage, retrieval, and updates.  
