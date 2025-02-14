@@ -18,96 +18,168 @@
 </h3>
 <br />
 
-**GraphFusionAI** is an open-source framework for building **adaptive multi-agent systems** using the power of **knowledge graphs** and **neural memory networks**. It provides a foundation for creating collaborative, real-time learning agents capable of dynamic task orchestration and semantic understanding.  
+# **GraphFusionAI 🚀 – The Graph-Based AI Agent Framework**  
 
-The project is designed for modularity and accessibility, enabling developers to build **graph-based AI agents** and **multi-agent systems** across industries like **healthcare**, **finance**, **education**, and more.
+⚠️ **This project is in early development!** Expect bugs, incomplete features, and potential breaking changes. If you're contributing, **please read the codebase carefully** and help us improve it.  
 
+GraphFusionAI is an **open-source AI framework** designed to build **graph-powered multi-agent systems** with **neural memory**, **dynamic knowledge graphs**, and **LLM integration**. It enables **autonomous, context-aware AI agents** that can learn, reason, and collaborate in real time.  
 
-## Key Features
+---
 
-- **Graph-Based Memory**: Combines structured knowledge graphs with neural memory for adaptable and queryable agent memory.
-- **Multi-Agent Collaboration**: Supports dynamic task orchestration and collaboration between AI agents.
-- **Integrations with LLMs**: Expandable with large language model tools for enhanced capabilities.
+## **🌟 Features (Work in Progress)**  
+✅ **Graph-Based Agents** – AI agents that operate on knowledge graphs.  
+✅ **Neural Memory System** – Stores and retrieves contextual knowledge.  
+✅ **Multi-Agent Collaboration** – Agents interact, exchange knowledge, and optimize decisions.  
+✅ **LLM Integration** – Supports OpenAI, Anthropic, LLaMA, and LiteLLM for smart reasoning.  
+✅ **Tool-Based Extensibility** – Agents can use pluggable tools (search, diagnosis, etc.).  
+✅ **Self-Healing Mechanism** – Automatically prunes outdated or irrelevant memory.  
+✅ **Real-Time Learning** – Dynamically updates knowledge and adapts.  
 
-## Getting Started
+⚠️ **Known Issues:**  
+- **Memory module is unstable** – Needs better handling of storage, retrieval, and updates.  
+- **Agent decision-making is inconsistent** – Some LLM-based reasoning paths are not fully optimized.  
+- **LLM response parsing is unreliable** – Some responses need better structuring.  
+- **Graph updates may cause inconsistencies** – Edge cases in knowledge storage require fixes.  
+- **Tool integration is not fully tested** – Some tools might not work as expected.  
 
-### Prerequisites
+---
 
-- Python 3.9+
-- Virtual environment (recommended)
-- Required dependencies (see `requirements.txt`)
+## **📂 Project Structure**  
 
-### Installation
+```
+graphfusionai/
+├── core/               # Core graph operations and knowledge representation
+│   ├── graph.py        # Graph structure and operations
+│   ├── knowledge_graph.py  # Knowledge graph logic
+│   ├── query_engine.py  # Querying and searching graph data
+│   ├── updater.py      # Real-time graph updates
+│   ├── embeddings.py   # Node embeddings for efficient retrieval
+│
+├── memory/             # AI Memory System (Buggy, Needs Fixes)
+│   ├── memory_manager.py  # Manages agent memory persistence
+│   ├── retrieval.py    # Retrieves context-aware memory
+│   ├── self_healing.py # Prunes outdated knowledge
+│   ├── embeddings.py   # Text-to-vector transformation
+│   ├── dynamic_memory_cell.py  # Adaptive memory storage
+│
+├── llm/                # LLM Clients (Some issues with response handling)
+│   ├── openai_client.py
+│   ├── anthropic_client.py
+│   ├── llama_client.py
+│   ├── litellm_client.py
+│   ├── base_llm_client.py
+│
+├── agents/             # AI Agents (Needs better task execution logic)
+│   ├── base_agent.py   # Abstract agent structure
+│   ├── agent_builder.py # Dynamically create AI agents
+│
+├── tools/              # Extensible agent tools (Some tools untested)
+│   ├── registry.py     # Registers tools dynamically
+│   ├── base_tool.py    # Standard tool interface
+│   ├── search_tool.py  # Example web search tool
+│
+├── app.py              # Main entry point for running agents
+├── requirements.txt    # Dependencies
+└── README.md           # This file
+```
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/GraphFusion/GraphFusionAI.git
-   cd GraphFusionAI
-   ```
+---
 
-2. Install the package via pip:
-   ```bash
-   pip install .
-   ```
+## **🚀 Quick Start: Create an AI Agent**  
 
-3. Install additional dependencies for development:
-   ```bash
-   pip install -r requirements.txt
-   ```
+1️⃣ **Install Dependencies**  
+```sh
+pip install -r requirements.txt
+```
 
-## Quick Start
+2️⃣ **Initialize Graph & Memory Systems**  
+```python
+from graphfusionai.core.graph import GraphNetwork
+from graphfusionai.core.knowledge_graph import KnowledgeGraph
+from graphfusionai.memory.memory_manager import MemoryManager
 
-1. Run the **Simple Agent Workflow** example:
-   ```bash
-   python examples/simple_agent_workflow.py
-   ```
-2. Review outputs to observe agent interactions, memory updates, and graph modifications.
+graph_network = GraphNetwork()
+knowledge_graph = KnowledgeGraph()
+memory_manager = MemoryManager()
+```
 
-## Contributing
+3️⃣ **Build an Agent with LLM & Tools**  
+```python
+from graphfusionai.agents.agent_builder import AgentBuilder
+from graphfusionai.agents.base_agent import BaseAgent
 
-We welcome contributions to make GraphFusionAI even better! You can contribute by:
+agent_config = {
+    "memory": {"input_dim": 256, "memory_dim": 512, "context_dim": 128},
+    "llm": {"provider": "openai", "model": "gpt-4", "api_key": "your-api-key"},
+    "tools": ["search_tool"]
+}
 
-- Identifying bugs by running `examples/simple_agent_workflow.py`.
-- Suggesting or implementing new features.
-- Improving documentation.
+agent_builder = AgentBuilder(graph_network, knowledge_graph)
+agent = agent_builder.create_agent(BaseAgent, "AIResearcher", agent_config)
+```
 
-### Steps to Contribute
+4️⃣ **Use Agent for Reasoning & Knowledge Updates**  
+```python
+query = "What are the latest advancements in AI?"
+response = agent.use_llm_for_query(query)
+print(response)
 
-1. **Fork** the repository.
-2. **Create** a branch for your feature/bugfix:
-   ```bash
-   git checkout -b feature-name
-   ```
-3. **Commit** your changes:
-   ```bash
-   git commit -m "Description of changes"
-   ```
-4. **Push** your branch and open a Pull Request.
+agent.update_graph([{"from": "AI", "to": "LLMs", "relation": "advancing"}])
+```
 
+---
 
-## Issues
+## **⚠️ Contributing: Please Read Carefully!**  
 
-Run `examples/simple_agent_workflow.py` to identify the following types of issues:
+This project **is not stable yet!** There are **bugs, missing features, and breaking changes.** If you're contributing, please:  
 
-1. **Bugs** in knowledge graph updates or neural memory workflows.
-2. **Optimization** opportunities for multi-agent collaboration.
-3. Missing integrations with external LLM tools or APIs.
-4. Gaps in documentation and user experience.
+1️⃣ **Read the codebase carefully** before making any changes.  
+2️⃣ **Check the open issues** – See if a bug is already reported before opening a new one.  
+3️⃣ **Propose improvements** – If something is broken or inefficient, suggest a better way.  
+4️⃣ **Write tests** – Most features are not fully tested yet. Help us improve test coverage.  
+5️⃣ **Fix known issues** – Look at the `TODOs` and `FIXME` comments in the code.  
 
-Check the [issues](https://github.com/GraphFusion/GraphFusionAI/issues) page for a complete list.
+To contribute:  
+```sh
+git clone https://github.com/GraphFusionAI/GraphFusionAI.git
+cd GraphFusionAI
+git checkout -b feature-your-fix
+# Make changes, commit, and push
+```
+Then open a **Pull Request (PR)** with a detailed description.  
 
+---
 
-## Documentation
+## **🔧 How You Can Help**
+- **Fix Memory System** – Improve memory retrieval, update logic, and self-healing.  
+- **Improve Agent Decision-Making** – Optimize reasoning steps and decision-tree logic.  
+- **Refactor LLM Response Handling** – Some responses are not structured properly.  
+- **Test Tool Integrations** – Make sure tools work correctly and return expected results.  
+- **Optimize Knowledge Graph Queries** – Improve search efficiency and update mechanisms.  
 
-For detailed usage instructions, visit our [official documentation](https://github.com/GraphFusion/GraphFusionAI/wiki).
+---
 
+## **📌 Roadmap**  
+✅ **LLM Model Agnostic** (OpenAI, Anthropic, LLaMA, etc.)  
+✅ **Graph-Based Decision Making**  
+✅ **Self-Healing Memory**  
+✅ **Multi-Agent Communication**  
+🔜 **AutoML for Optimized Agent Performance**  
+🔜 **Integration with Hugging Face & LangChain**  
 
-## Community
+---
 
-Join the conversation, share feedback, and collaborate on new ideas:
+## **📜 License**
+**MIT License** – Free to use & modify.  
 
-- **Discord**: [Join our community](https://discord.gg/zK94WvRjZT)
-- **GitHub Discussions**: [Start a thread](https://github.com/GraphFusion/GraphFusionAI/discussions)
+---
+
+## **💬 Join the Discussion**
+💡 **Twitter**: [@GraphFusionAI](https://twitter.com/GraphFusionAI)  
+💡 **GitHub Discussions**: Open issues & collaborate!  
+💡 **Discord**: Coming soon!  
+
+🚀 **Let's build the future of graph-based AI together!**
 
 ## License
 
