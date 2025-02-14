@@ -3,7 +3,7 @@
 ![graph-fusion-logo](https://github.com/user-attachments/assets/de5a4a09-a7e4-4b21-b3ec-01d5a3097ecd)
 
 </p>
-<h1 align="center" weight='300'>GraphFusionAI: A toolkit for graph-based AI agents and multi-agent systems</h1>
+<h1 align="center" weight='300'>GraphFusionAI: The Graph-Based AI Agent Framework</h1>
 <div align="center">
 
   [![GitHub release](https://img.shields.io/badge/Github-Release-blue)](https://github.com/GraphFusion/GraphFusion-NMN/releases)
@@ -17,8 +17,6 @@
    <a href="https://graphfusion.github.io/graphfusion.io/"><b>Website</b></a>
 </h3>
 <br />
-
-# **GraphFusionAI  – The Graph-Based AI Agent Framework**  
 
 ⚠️ **This project is in early development!** Expect bugs, incomplete features, and potential breaking changes. If you're contributing, **please read the codebase carefully** and help us improve it.  
 
