@@ -40,49 +40,6 @@ GraphFusionAI is an **open-source AI framework** designed to build **graph-power
 - **Graph updates may cause inconsistencies** – Edge cases in knowledge storage require fixes.  
 - **Tool integration is not fully tested** – Some tools might not work as expected.  
 
----
-
-## **📂 Project Structure**  
-
-```
-graphfusionai/
-├── core/               # Core graph operations and knowledge representation
-│   ├── graph.py        # Graph structure and operations
-│   ├── knowledge_graph.py  # Knowledge graph logic
-│   ├── query_engine.py  # Querying and searching graph data
-│   ├── updater.py      # Real-time graph updates
-│   ├── embeddings.py   # Node embeddings for efficient retrieval
-│
-├── memory/             # AI Memory System (Buggy, Needs Fixes)
-│   ├── memory_manager.py  # Manages agent memory persistence
-│   ├── retrieval.py    # Retrieves context-aware memory
-│   ├── self_healing.py # Prunes outdated knowledge
-│   ├── embeddings.py   # Text-to-vector transformation
-│   ├── dynamic_memory_cell.py  # Adaptive memory storage
-│
-├── llm/                # LLM Clients (Some issues with response handling)
-│   ├── openai_client.py
-│   ├── anthropic_client.py
-│   ├── llama_client.py
-│   ├── litellm_client.py
-│   ├── base_llm_client.py
-│
-├── agents/             # AI Agents (Needs better task execution logic)
-│   ├── base_agent.py   # Abstract agent structure
-│   ├── agent_builder.py # Dynamically create AI agents
-│
-├── tools/              # Extensible agent tools (Some tools untested)
-│   ├── registry.py     # Registers tools dynamically
-│   ├── base_tool.py    # Standard tool interface
-│   ├── search_tool.py  # Example web search tool
-│
-├── app.py              # Main entry point for running agents
-├── requirements.txt    # Dependencies
-└── README.md           # This file
-```
-
----
-
 ## **🚀 Quick Start: Create an AI Agent**  
 
 1️⃣ **Install Dependencies**  
