@@ -2,76 +2,166 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
-from typing import Dict, List, Any, Optional
-from graphfusionai.memory.dynamic_memory_cell import DynamicMemoryCell
-from graphfusionai.memory.retrieval import MemoryRetrieval
-from graphfusionai.memory.embeddings import EmbeddingModel
+from typing import Dict, List, Any, Optional, Union
+from .dynamic_memory_cell import DynamicMemoryCell
+from .embeddings import EmbeddingModel
 
 class MemoryManager:
     """
     Centralized memory controller for GraphFusionAI.
-    Handles memory storage, retrieval, and updates.
+    Handles memory storage, retrieval, and updates with advanced memory management features.
     """
 
-    def __init__(self, input_dim: int = 256, memory_dim: int = 512, context_dim: int = 128):
+    def __init__(self, embedding_model: Optional[EmbeddingModel] = None):
         """
-        Initializes the memory system with a dynamic memory cell.
+        Initializes the memory system.
 
         Args:
-            input_dim (int): Input feature size.
-            memory_dim (int): Memory storage size.
-            context_dim (int): Context embedding size.
+            embedding_model: Model to generate embeddings. If None, creates default model.
         """
-        self.memory_cell = DynamicMemoryCell(input_dim, memory_dim, context_dim)
-        self.memory_retrieval = MemoryRetrieval()
-        self.embedding_model = EmbeddingModel()
+        self.embedding_model = embedding_model or EmbeddingModel()
+        self.memory_cell = DynamicMemoryCell(self.embedding_model)
+        self.memory_store: Dict[str, Dict[str, Any]] = {}
+        self.memory_tags: Dict[str, List[str]] = {}  
+        self.memory_timestamps: Dict[str, float] = {}  
+        self.importance_scores: Dict[str, float] = {}  
 
-        self.memory_store: Dict[str, Any] = {}
-
-    def store_memory(self, data: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+    def store_memory(self, 
+                    data: Union[str, List[str]], 
+                    tags: Optional[List[str]] = None,
+                    importance: float = 1.0,
+                    metadata: Optional[Dict[str, Any]] = None) -> Union[str, List[str]]:
         """
-        Stores knowledge as vector embeddings in memory.
+        Stores knowledge as vector embeddings in memory with enhanced metadata.
 
         Args:
-            data (str): Knowledge to be stored.
-            metadata (dict, optional): Additional context for retrieval.
+            data: Knowledge to be stored (single text or list of texts)
+            tags: Optional list of tags to organize memories
+            importance: Importance score (0.0 to 1.0) for memory prioritization
+            metadata: Additional context for retrieval
 
         Returns:
-            str: Unique memory key (vector hash).
+            Unique memory key(s) (single key or list of keys)
         """
-        vector = self.embedding_model.encode(data)
-        memory_key = str(hash(tuple(vector.tolist())))  
-        self.memory_store[memory_key] = {"data": data, "metadata": metadata}
-        return memory_key
+        if isinstance(data, str):
+            data = [data]
+            single_input = True
+        else:
+            single_input = False
 
-    def retrieve_memory(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        memory_keys = []
+        for text in data:
+            vector = self.embedding_model.encode(text)
+            memory_key = str(hash(tuple(vector.tolist())))
+            
+            self.memory_store[memory_key] = {
+                "data": text,
+                "metadata": metadata or {},
+                "embedding": vector
+            }
+            
+            if tags:
+                self.memory_tags[memory_key] = tags
+                
+            self.importance_scores[memory_key] = max(0.0, min(1.0, importance))
+            self.memory_timestamps[memory_key] = torch.cuda.Event().record()
+            
+            self.memory_cell.add(text)
+            memory_keys.append(memory_key)
+
+        return memory_keys[0] if single_input else memory_keys
+
+    def retrieve_memory(self, 
+                       query: str,
+                       top_k: int = 5,
+                       min_similarity: float = 0.0,
+                       tags: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
-        Retrieves the most relevant memories based on the query.
+        Retrieves the most relevant memories based on the query with filtering options.
 
         Args:
-            query (str): The input query for retrieval.
-            top_k (int): Number of top results to return.
+            query: The input query for retrieval
+            top_k: Number of top results to return
+            min_similarity: Minimum similarity threshold for results
+            tags: Optional list of tags to filter memories
 
         Returns:
-            List[Dict[str, Any]]: List of relevant memory entries.
+            List of relevant memory entries with similarity scores
         """
-        query_vector = self.embedding_model.encode(query)
-        return self.memory_retrieval.search(self.memory_store, query_vector, top_k)
+        results = self.memory_cell.query(query, top_k=top_k)
+        
+        # Filter by similarity threshold
+        results = [r for r in results if r["similarity"] >= min_similarity]
+        
+        # Filter by tags if provided
+        if tags:
+            filtered_results = []
+            for result in results:
+                memory_key = self._get_key_by_text(result["text"])
+                if memory_key and any(tag in self.memory_tags.get(memory_key, []) for tag in tags):
+                    filtered_results.append(result)
+            results = filtered_results
 
-    def update_memory(self, memory_key: str, new_data: str) -> bool:
+        # Enhance results with metadata
+        for result in results:
+            memory_key = self._get_key_by_text(result["text"])
+            if memory_key:
+                result["metadata"] = self.memory_store[memory_key].get("metadata", {})
+                result["importance"] = self.importance_scores.get(memory_key, 1.0)
+                
+        return results
+
+    def update_memory(self, 
+                     memory_key: str, 
+                     new_data: Optional[str] = None,
+                     new_tags: Optional[List[str]] = None,
+                     new_importance: Optional[float] = None,
+                     new_metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
-        Updates an existing memory entry.
+        Updates an existing memory entry with flexible field updates.
 
         Args:
-            memory_key (str): The key of the memory to update.
-            new_data (str): The updated information.
+            memory_key: The key of the memory to update
+            new_data: Optional updated information
+            new_tags: Optional updated tags
+            new_importance: Optional updated importance score
+            new_metadata: Optional updated metadata
 
         Returns:
-            bool: Whether the update was successful.
+            Whether the update was successful
         """
-        if memory_key in self.memory_store:
+        if memory_key not in self.memory_store:
+            return False
+            
+        if new_data:
+            old_data = self.memory_store[memory_key]["data"]
+            self.memory_cell.remove(old_data)  # Remove old data from cell
             self.memory_store[memory_key]["data"] = new_data
-            return True
-        return False
+            self.memory_store[memory_key]["embedding"] = self.embedding_model.encode(new_data)
+            self.memory_cell.add(new_data)  # Add new data to cell
+            
+        if new_tags is not None:
+            self.memory_tags[memory_key] = new_tags
+            
+        if new_importance is not None:
+            self.importance_scores[memory_key] = max(0.0, min(1.0, new_importance))
+            
+        if new_metadata is not None:
+            self.memory_store[memory_key]["metadata"].update(new_metadata)
+            
+        return True
 
-    
+    def _get_key_by_text(self, text: str) -> Optional[str]:
+        """Helper method to find memory key by stored text."""
+        for key, value in self.memory_store.items():
+            if value["data"] == text:
+                return key
+        return None
+
+    def clear(self) -> None:
+        """Clears all stored memories and related data."""
+        self.memory_store.clear()
+        self.memory_tags.clear()
+        self.memory_timestamps.clear()
+        self.importance_scores.clear()
+        self.memory_cell.clear()
