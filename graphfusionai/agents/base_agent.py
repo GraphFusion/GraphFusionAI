@@ -5,7 +5,6 @@ from typing import Any, Dict, List
 from graphfusionai.core.graph import GraphNetwork
 from graphfusionai.core.knowledge_graph import KnowledgeGraph
 from graphfusionai.memory.memory_manager import MemoryManager  
-from graphfusionai.llm import create_llm  
 import torch
 
 class BaseAgent:
@@ -27,7 +26,6 @@ class BaseAgent:
         self.knowledge_graph = knowledge_graph
         self.memory_manager = memory_manager  
 
-        self.llm_client = create_llm(provider=llm_provider, api_key=api_key, model=model)
 
     def process_input(self, input_data: Any) -> Dict[str, torch.Tensor]:
         """
