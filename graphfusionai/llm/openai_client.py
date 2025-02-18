@@ -1,70 +1,92 @@
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+import os
+from typing import Optional, Dict, Any, List
 import openai
-import requests
-from typing import List, Dict, Optional
 from .base_llm import BaseLLM
-import logging
-
-logger = logging.getLogger(__name__)
 
 class OpenAIClient(BaseLLM):
-    def __init__(self, api_key: str, model: str):
+    """
+    Client for interacting with OpenAI's GPT API.
+    """
+
+    def __init__(self, model: str = "gpt-4", api_key: Optional[str] = None):
         """
-        Initialize the OpenAIClient with API key and model.
+        Initialize the OpenAI client.
 
         Args:
-            api_key (str): OpenAI API key.
-            model (str): Model name (e.g., 'gpt-4', 'gpt-3.5-turbo').
+            model: Model to use (e.g. "gpt-4", "gpt-3.5-turbo")
+            api_key: OpenAI API key. If not provided, will look for OPENAI_API_KEY env var
         """
-        super().__init__(api_key, model)
-        self.context_limits = self._fetch_context_limits()
+        super().__init__(model)
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("OpenAI API key must be provided or set in OPENAI_API_KEY env var")
+        
+        self.client = openai.Client(api_key=self.api_key)
 
-    def _fetch_context_limits(self) -> Dict[str, int]:
-        """
-        Returns the context window size for supported models.
+        # Set context window based on model
+        if "gpt-4" in model:
+            self.context_window = 8192
+        else:
+            self.context_window = 4096
 
-        Returns:
-            Dict[str, int]: Mapping of model names to context window sizes.
+    def call(self, messages: List[Dict[str, str]], 
+             max_tokens: Optional[int] = None,
+             temperature: float = 0.7,
+             system_prompt: Optional[str] = None) -> str:
         """
-        return {
-            "gpt-4": 8192,
-            "gpt-4-turbo": 8192,
-            "gpt-3.5-turbo": 4096,
-        }
-
-    def get_context_window_size(self) -> int:
-        """
-        Get the context window size for the selected model.
-
-        Returns:
-            int: The context window size.
-        """
-        return self.context_limits.get(self.model, 4096)
-
-    def call(self, messages: List[Dict[str, str]], **kwargs) -> Optional[str]:
-        """
-        Calls the OpenAI API with the given messages.
+        Make a call to the OpenAI API.
 
         Args:
-            messages (List[Dict[str, str]]): Conversation messages in OpenAI format.
-            kwargs: Additional parameters (e.g., temperature, max_tokens).
+            messages: List of message dictionaries with 'role' and 'content' keys
+            max_tokens: Maximum number of tokens to generate
+            temperature: Sampling temperature (0.0 to 1.0)
+            system_prompt: Optional system prompt to prepend
 
         Returns:
-            Optional[str]: The response text, or None if an error occurs.
+            Generated text response
         """
-        try:
-            response = openai.ChatCompletion.create(
-                model=self.model,
-                messages=messages,
-                api_key=self.api_key,  
-                **kwargs
-            )
-            return response["choices"][0]["message"]["content"]
-        except openai.error.OpenAIError as e:
-            logger.error(f"OpenAI API error: {str(e)}")
-            return None  
-        except Exception as e:
-            logger.exception(f"Unexpected error in OpenAIClient: {str(e)}")
-            return None
+        if system_prompt:
+            messages = [{"role": "system", "content": system_prompt}] + messages
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+
+        return response.choices[0].message.content
+
+    def stream(self, messages: List[Dict[str, str]],
+               max_tokens: Optional[int] = None,
+               temperature: float = 0.7,
+               system_prompt: Optional[str] = None):
+        """
+        Stream responses from the OpenAI API.
+
+        Args:
+            messages: List of message dictionaries with 'role' and 'content' keys
+            max_tokens: Maximum number of tokens to generate
+            temperature: Sampling temperature (0.0 to 1.0)
+            system_prompt: Optional system prompt to prepend
+
+        Yields:
+            Generated text chunks as they become available
+        """
+        if system_prompt:
+            messages = [{"role": "system", "content": system_prompt}] + messages
+
+        stream = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=True
+        )
+
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
