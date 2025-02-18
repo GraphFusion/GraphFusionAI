@@ -26,7 +26,6 @@ class AnthropicClient(BaseLLM):
         
         self.client = anthropic.Client(api_key=self.api_key)
         
-        # Set context window based on model
         if "opus" in model:
             self.context_window = 200000  # Claude 3 Opus
         elif "sonnet" in model:
