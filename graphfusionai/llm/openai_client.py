@@ -26,7 +26,6 @@ class OpenAIClient(BaseLLM):
         
         self.client = openai.Client(api_key=self.api_key)
 
-        # Set context window based on model
         if "gpt-4" in model:
             self.context_window = 8192
         else:
