@@ -1,36 +1,99 @@
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
-import requests
-from .base_llm import BaseLLM
+import os
+from typing import Optional, Dict, Any
+import anthropic
 
-class AnthropicClient(BaseLLM):
-    def __init__(self, api_key: str, model: str):
-        super().__init__(api_key, model)
-        self.client = Anthropic(api_key=api_key)
+class AnthropicClient:
+    """
+    Client for interacting with Anthropic's Claude LLM API.
+    """
 
-    def call(self, messages, **kwargs):
-        """Call Anthropic API with a formatted prompt."""
-        human_prompt = " ".join(
-            f"{HUMAN_PROMPT} {msg['content']}" if msg["role"] == "user" else f"{AI_PROMPT} {msg['content']}"
-            for msg in messages
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Initialize the Anthropic client.
+
+        Args:
+            api_key: Anthropic API key. If not provided, will look for ANTHROPIC_API_KEY env var
+        """
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("Anthropic API key must be provided or set in ANTHROPIC_API_KEY env var")
+        
+        self.client = anthropic.Client(api_key=self.api_key)
+
+    def generate(self, prompt: str, max_tokens: int = 1000, 
+                temperature: float = 0.7, model: str = "claude-2",
+                system_prompt: Optional[str] = None) -> str:
+        """
+        Generate text completion using Claude.
+
+        Args:
+            prompt: Input prompt text
+            max_tokens: Maximum number of tokens to generate
+            temperature: Sampling temperature (0.0 to 1.0)
+            model: Model to use (e.g. "claude-2")
+            system_prompt: Optional system prompt to prepend
+
+        Returns:
+            Generated text completion
+        """
+        messages = []
+        if system_prompt:
+            messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
+            
+        messages.append({
+            "role": "user", 
+            "content": prompt
+        })
+
+        response = self.client.messages.create(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
         )
 
-        try:
-            response = self.client.completions.create(
-                model=self.model,
-                prompt=human_prompt,
-                **kwargs,
-            )
-            return response.completion.strip()
-        except Exception as e:
-            raise RuntimeError(f"Anthropic API error: {str(e)}")
+        return response.content[0].text
 
-    def get_context_window_size(self):
-        context_limits = {
-            "claude-v1": 9000,
-            "claude-v1.3": 9000,
-            "claude-instant": 6000,
-        }
-        return context_limits.get(self.model, 6000)
+    def stream_generate(self, prompt: str, max_tokens: int = 1000,
+                       temperature: float = 0.7, model: str = "claude-2",
+                       system_prompt: Optional[str] = None):
+        """
+        Stream text completion using Claude.
+
+        Args:
+            prompt: Input prompt text  
+            max_tokens: Maximum number of tokens to generate
+            temperature: Sampling temperature (0.0 to 1.0)
+            model: Model to use (e.g. "claude-2")
+            system_prompt: Optional system prompt to prepend
+
+        Yields:
+            Generated text chunks as they become available
+        """
+        messages = []
+        if system_prompt:
+            messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
+            
+        messages.append({
+            "role": "user",
+            "content": prompt
+        })
+
+        with self.client.messages.stream(
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        ) as stream:
+            for chunk in stream:
+                if chunk.content:
+                    yield chunk.content[0].text
