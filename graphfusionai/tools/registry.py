@@ -1,28 +1,60 @@
-from typing import Dict, Type
+from typing import Dict, Type, Optional
+from .base import BaseTool
 
-# Registry for tools
 class ToolRegistry:
-    _tools: Dict[str, Type] = {}
+    """A registry to manage and access available tools."""
+    
+    _instance: Optional['ToolRegistry'] = None
+    _tools: Dict[str, Type[BaseTool]] = {}
 
-    @classmethod
-    def register_tool(cls, name: str, tool_class: Type) -> None:
-        """
-        Register a tool by its name.
-        """
-        cls._tools[name] = tool_class
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
-    @classmethod
-    def get_tool(cls, name: str):
+    def register(self, tool_class: Type[BaseTool]) -> None:
         """
-        Retrieve a tool by its name.
+        Register a tool class.
+        
+        Args:
+            tool_class: The tool class to register, must inherit from BaseTool
         """
-        if name not in cls._tools:
-            raise ValueError(f"Tool '{name}' not registered.")
-        return cls._tools[name]
+        if not issubclass(tool_class, BaseTool):
+            raise TypeError("Tool class must inherit from BaseTool")
+            
+        tool_name = tool_class.__name__.lower()
+        self._tools[tool_name] = tool_class
 
-    @classmethod
-    def list_tools(cls):
+    def get(self, name: str) -> Type[BaseTool]:
         """
-        List all available tools.
+        Get a registered tool class by name.
+        
+        Args:
+            name: Name of the tool to retrieve
+            
+        Returns:
+            The requested tool class
+            
+        Raises:
+            KeyError: If tool is not found
         """
-        return list(cls._tools.keys())
+        name = name.lower()
+        if name not in self._tools:
+            raise KeyError(f"Tool '{name}' not found in registry")
+        return self._tools[name]
+
+    def list(self) -> Dict[str, str]:
+        """
+        List all registered tools and their descriptions.
+        
+        Returns:
+            Dictionary mapping tool names to their descriptions
+        """
+        return {
+            name: tool_class.description 
+            for name, tool_class in self._tools.items()
+        }
+
+    def clear(self) -> None:
+        """Remove all registered tools."""
+        self._tools.clear()
