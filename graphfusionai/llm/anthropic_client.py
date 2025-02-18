@@ -1,8 +1,8 @@
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import os
 from typing import Optional, Dict, Any, List, Generator
+import requests
 import anthropic
 from .base_llm import BaseLLM
 
