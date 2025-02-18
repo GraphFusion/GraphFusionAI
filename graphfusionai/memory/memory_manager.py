@@ -94,7 +94,6 @@ class MemoryManager:
         
         results = [r for r in results if r["similarity"] >= min_similarity]
         
-        # Filter by tags if provided
         if tags:
             filtered_results = []
             for result in results:
@@ -103,7 +102,6 @@ class MemoryManager:
                     filtered_results.append(result)
             results = filtered_results
 
-        # Enhance results with metadata
         for result in results:
             memory_key = self._get_key_by_text(result["text"])
             if memory_key:
