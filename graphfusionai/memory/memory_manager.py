@@ -5,6 +5,7 @@ import torch
 from typing import Dict, List, Any, Optional, Union
 from graphfusionai.memory.dynamic_memory_cell import DynamicMemoryCell
 from graphfusionai.memory.embeddings import EmbeddingModel
+from graphfusionai.memory.retrieval import MemoryRetrieval
 
 class MemoryManager:
     """
@@ -22,9 +23,10 @@ class MemoryManager:
         self.embedding_model = embedding_model or EmbeddingModel()
         self.memory_cell = DynamicMemoryCell(self.embedding_model)
         self.memory_store: Dict[str, Dict[str, Any]] = {}
-        self.memory_tags: Dict[str, List[str]] = {}  
-        self.memory_timestamps: Dict[str, float] = {}  
-        self.importance_scores: Dict[str, float] = {}  
+        self.memory_tags: Dict[str, List[str]] = {}  # For organizing memories by tags
+        self.memory_timestamps: Dict[str, float] = {}  # For tracking memory age
+        self.importance_scores: Dict[str, float] = {}  # For prioritizing memories
+        self.retrieval = MemoryRetrieval(embedding_model=self.embedding_model)
 
     def store_memory(self, 
                     data: Union[str, List[str]], 
@@ -90,8 +92,10 @@ class MemoryManager:
         """
         results = self.memory_cell.query(query, top_k=top_k)
         
+        # Filter by similarity threshold
         results = [r for r in results if r["similarity"] >= min_similarity]
         
+        # Filter by tags if provided
         if tags:
             filtered_results = []
             for result in results:
@@ -100,6 +104,7 @@ class MemoryManager:
                     filtered_results.append(result)
             results = filtered_results
 
+        # Enhance results with metadata
         for result in results:
             memory_key = self._get_key_by_text(result["text"])
             if memory_key:
@@ -132,10 +137,10 @@ class MemoryManager:
             
         if new_data:
             old_data = self.memory_store[memory_key]["data"]
-            self.memory_cell.remove(old_data)  
+            self.memory_cell.remove(old_data)  # Remove old data from cell
             self.memory_store[memory_key]["data"] = new_data
             self.memory_store[memory_key]["embedding"] = self.embedding_model.encode(new_data)
-            self.memory_cell.add(new_data)  
+            self.memory_cell.add(new_data)  # Add new data to cell
             
         if new_tags is not None:
             self.memory_tags[memory_key] = new_tags
@@ -162,3 +167,26 @@ class MemoryManager:
         self.memory_timestamps.clear()
         self.importance_scores.clear()
         self.memory_cell.clear()
+
+    def search_memories(self, query: str, top_k: int = 3, min_similarity: float = 0.0, 
+                       filter_metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Search memories using the query string.
+        
+        Args:
+            query: The search query
+            top_k: Number of results to return
+            min_similarity: Minimum similarity threshold
+            filter_metadata: Optional metadata filters
+            
+        Returns:
+            List of matching memories with their similarity scores
+        """
+        query_vector = self.embedding_model.encode(query)
+        return self.retrieval.search(
+            self.memory_store,
+            query_vector,
+            top_k=top_k,
+            min_similarity=min_similarity,
+            filter_metadata=filter_metadata
+        )
