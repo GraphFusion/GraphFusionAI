@@ -15,24 +15,49 @@ with warnings.catch_warnings():
 
 load_dotenv()
 
-# Context window sizes for different models
 LLM_CONTEXT_WINDOW_SIZES = {
     # openai
     "gpt-4": 8192,
+    "gpt-4o": 128000,
+    "gpt-4o-mini": 128000,
     "gpt-4-turbo": 128000,
-    "gpt-3.5-turbo": 16385,
-    # anthropic
-    "claude-3-opus": 200000,
-    "claude-3-sonnet": 200000,
-    "claude-3-haiku": 200000,
+    "o1-preview": 128000,
+    "o1-mini": 128000,
     # gemini
-    "gemini-pro": 32768,
+    "gemini-2.0-flash": 1048576,
     "gemini-1.5-pro": 2097152,
-    # mistral
-    "mistral-tiny": 32768,
-    "mistral-small": 32768,
-    "mistral-medium": 32768,
-    # other providers...
+    "gemini-1.5-flash": 1048576,
+    "gemini-1.5-flash-8b": 1048576,
+    # deepseek
+    "deepseek-chat": 128000,
+    # groq
+    "gemma2-9b-it": 8192,
+    "gemma-7b-it": 8192,
+    "llama3-groq-70b-8192-tool-use-preview": 8192,
+    "llama3-groq-8b-8192-tool-use-preview": 8192,
+    "llama-3.1-70b-versatile": 131072,
+    "llama-3.1-8b-instant": 131072,
+    "llama-3.2-1b-preview": 8192,
+    "llama-3.2-3b-preview": 8192,
+    "llama-3.2-11b-text-preview": 8192,
+    "llama-3.2-90b-text-preview": 8192,
+    "llama3-70b-8192": 8192,
+    "llama3-8b-8192": 8192,
+    "mixtral-8x7b-32768": 32768,
+    "llama-3.3-70b-versatile": 128000,
+    "llama-3.3-70b-instruct": 128000,
+    # sambanova
+    "Meta-Llama-3.3-70B-Instruct": 131072,
+    "QwQ-32B-Preview": 8192,
+    "Qwen2.5-72B-Instruct": 8192,
+    "Qwen2.5-Coder-32B-Instruct": 8192,
+    "Meta-Llama-3.1-405B-Instruct": 8192,
+    "Meta-Llama-3.1-70B-Instruct": 131072,
+    "Meta-Llama-3.1-8B-Instruct": 131072,
+    "Llama-3.2-90B-Vision-Instruct": 16384,
+    "Llama-3.2-11B-Vision-Instruct": 16384,
+    "Meta-Llama-3.2-3B-Instruct": 4096,
+    "Meta-Llama-3.2-1B-Instruct": 16384,
 }
 
 DEFAULT_CONTEXT_WINDOW_SIZE = 8192
