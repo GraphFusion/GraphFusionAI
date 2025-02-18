@@ -45,14 +45,13 @@ class BaseLLM(ABC):
             timeout: Timeout for API calls in seconds
         """
         self.model = model
-        self.context_window = 4096  # Default context window size
-        self.context_window_margin = 0.75  # Use 75% of context window for safety
+        self.context_window = 4096  
+        self.context_window_margin = 0.75  
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
         self.logger = logging.getLogger(__name__)
         
-        # Usage tracking
         self.total_tokens_used = 0
         self.request_count = 0
         self.last_request_time = None
