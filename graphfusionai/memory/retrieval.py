@@ -60,7 +60,6 @@ class MemoryRetrieval:
                 for mv in memory_tensors
             ])
 
-            # Filter by minimum similarity
             for key, similarity in zip(memory_keys, similarities):
                 if similarity >= min_similarity:
                     scores.append((key, float(similarity)))
