@@ -92,7 +92,6 @@ class MemoryManager:
         """
         results = self.memory_cell.query(query, top_k=top_k)
         
-        # Filter by similarity threshold
         results = [r for r in results if r["similarity"] >= min_similarity]
         
         # Filter by tags if provided
