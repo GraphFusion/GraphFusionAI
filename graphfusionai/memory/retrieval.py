@@ -39,12 +39,10 @@ class MemoryRetrieval:
         """
         scores = []
 
-        # Calculate similarities in batches for better performance
         memory_vectors = []
         memory_keys = []
         
         for key, memory in memory_store.items():
-            # Skip if metadata filter doesn't match
             if filter_metadata and not self._matches_metadata(memory.get("metadata", {}), filter_metadata):
                 continue
                 
@@ -56,7 +54,6 @@ class MemoryRetrieval:
             memory_keys.append(key)
 
         if memory_vectors:
-            # Batch compute similarities
             memory_tensors = torch.stack(memory_vectors)
             similarities = 1 - torch.tensor([
                 cosine(query_vector.tolist(), mv.tolist()) 
