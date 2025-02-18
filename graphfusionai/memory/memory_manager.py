@@ -132,10 +132,10 @@ class MemoryManager:
             
         if new_data:
             old_data = self.memory_store[memory_key]["data"]
-            self.memory_cell.remove(old_data)  # Remove old data from cell
+            self.memory_cell.remove(old_data)  
             self.memory_store[memory_key]["data"] = new_data
             self.memory_store[memory_key]["embedding"] = self.embedding_model.encode(new_data)
-            self.memory_cell.add(new_data)  # Add new data to cell
+            self.memory_cell.add(new_data)  
             
         if new_tags is not None:
             self.memory_tags[memory_key] = new_tags
