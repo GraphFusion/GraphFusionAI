@@ -23,9 +23,9 @@ class MemoryManager:
         self.embedding_model = embedding_model or EmbeddingModel()
         self.memory_cell = DynamicMemoryCell(self.embedding_model)
         self.memory_store: Dict[str, Dict[str, Any]] = {}
-        self.memory_tags: Dict[str, List[str]] = {}  # For organizing memories by tags
-        self.memory_timestamps: Dict[str, float] = {}  # For tracking memory age
-        self.importance_scores: Dict[str, float] = {}  # For prioritizing memories
+        self.memory_tags: Dict[str, List[str]] = {}  
+        self.memory_timestamps: Dict[str, float] = {}  
+        self.importance_scores: Dict[str, float] = {}  
         self.retrieval = MemoryRetrieval(embedding_model=self.embedding_model)
 
     def store_memory(self, 
