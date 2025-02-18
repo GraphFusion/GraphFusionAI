@@ -1,7 +1,6 @@
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-import os
 from typing import Optional, Dict, Any, Generator, List
 import openai
 from .base_llm import BaseLLM
@@ -21,7 +20,6 @@ class OpenAIClient(BaseLLM):
         """
         super().__init__(model)
         
-        # Set context window based on model
         if "gpt-4" in model:
             self.context_window = 8192
         else:
