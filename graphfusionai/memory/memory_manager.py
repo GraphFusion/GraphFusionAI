@@ -92,7 +92,6 @@ class MemoryManager:
         
         results = [r for r in results if r["similarity"] >= min_similarity]
         
-        # Filter by tags if provided
         if tags:
             filtered_results = []
             for result in results:
