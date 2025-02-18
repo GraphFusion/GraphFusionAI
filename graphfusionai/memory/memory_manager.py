@@ -1,6 +1,3 @@
-import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 from typing import Dict, List, Any, Optional, Union
 from .dynamic_memory_cell import DynamicMemoryCell
@@ -22,9 +19,9 @@ class MemoryManager:
         self.embedding_model = embedding_model or EmbeddingModel()
         self.memory_cell = DynamicMemoryCell(self.embedding_model)
         self.memory_store: Dict[str, Dict[str, Any]] = {}
-        self.memory_tags: Dict[str, List[str]] = {}  
-        self.memory_timestamps: Dict[str, float] = {}  
-        self.importance_scores: Dict[str, float] = {}  
+        self.memory_tags: Dict[str, List[str]] = {}  # For organizing memories by tags
+        self.memory_timestamps: Dict[str, float] = {}  # For tracking memory age
+        self.importance_scores: Dict[str, float] = {}  # For prioritizing memories
 
     def store_memory(self, 
                     data: Union[str, List[str]], 
