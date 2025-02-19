@@ -76,7 +76,6 @@ class BaseAgent(ABC, BaseModel):
             if isinstance(tool, BaseTool):
                 processed_tools.append(tool)
             elif hasattr(tool, "name") and hasattr(tool, "func") and hasattr(tool, "description"):
-                # Convert generic tool object into a BaseTool instance.
                 processed_tools.append(BaseTool())
             else:
                 raise ValueError(f"Invalid tool type: {type(tool)}. Each tool must be an instance of BaseTool or have the required attributes.")
@@ -91,7 +90,6 @@ class BaseAgent(ABC, BaseModel):
 
     @property
     def key(self) -> str:
-        # Generate a unique key based on the agent's role, goal, and backstory.
         source = [
             self._original_role or self.role,
             self._original_goal or self.goal,
@@ -158,7 +156,7 @@ class BaseAgent(ABC, BaseModel):
         exclude = {"id", "_graph", "_memory_manager", "_llm_client"}
         copied_data = self.dict(exclude=exclude)
         copied_agent = type(self)(**copied_data)
-        copied_agent._graph = self._graph  # Share or shallow copy the graph
+        copied_agent._graph = self._graph  
         copied_agent._memory_manager = self._memory_manager
         copied_agent._llm_client = self._llm_client
         return copied_agent
