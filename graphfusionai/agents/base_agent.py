@@ -49,7 +49,6 @@ class BaseAgent(ABC, BaseModel):
     _original_goal: Optional[str] = PrivateAttr(default=None)
     _original_backstory: Optional[str] = PrivateAttr(default=None)
 
-    # Public fields
     id: UUID4 = Field(default_factory=uuid.uuid4, frozen=True)
     role: str = Field(..., description="Role of the agent")
     goal: str = Field(..., description="Objective of the agent")
