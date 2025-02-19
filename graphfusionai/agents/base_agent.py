@@ -6,6 +6,7 @@ from graphfusionai.core.graph import GraphNetwork
 from graphfusionai.core.knowledge_graph import KnowledgeGraph
 from graphfusionai.memory.memory_manager import MemoryManager  
 import torch
+from graphfusionai.llm import LLMClient
 
 class BaseAgent:
     def __init__(self, 
@@ -25,7 +26,7 @@ class BaseAgent:
         self.graph_network = graph_network
         self.knowledge_graph = knowledge_graph
         self.memory_manager = memory_manager  
-
+        self.llm_client = LLMClient(llm_provider, api_key, model)
 
     def process_input(self, input_data: Any) -> Dict[str, torch.Tensor]:
         """

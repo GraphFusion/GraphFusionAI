@@ -1,91 +1,110 @@
-import torch
-import torch.nn as nn
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from typing import Any, Dict, List, Optional
 import networkx as nx
-from typing import Dict, List, Optional, Any, Tuple
+import torch
 
-class KnowledgeGraph(nn.Module):
-    def __init__(self, entity_dim: int, relation_dim: int):
-        super().__init__()
-        self.entity_dim = entity_dim
-        self.relation_dim = relation_dim
-        
+class KnowledgeGraph:
+    """
+    A knowledge graph implementation that stores entities and their relationships.
+    Supports features on nodes and edges, and provides graph querying capabilities.
+    """
+
+    def __init__(self):
+        """
+        Initialize an empty knowledge graph using NetworkX.
+        """
         self.graph = nx.DiGraph()
-        self.entities: Dict[str, torch.Tensor] = {}
-        self.relations: Dict[str, torch.Tensor] = {}
-        
-        # Neural components
-        self.entity_encoder = nn.Sequential(
-            nn.Linear(entity_dim, entity_dim),
-            nn.ReLU(),
-            nn.Linear(entity_dim, entity_dim)
-        )
-        
-        self.relation_encoder = nn.Sequential(
-            nn.Linear(relation_dim, relation_dim),
-            nn.ReLU(),
-            nn.Linear(relation_dim, relation_dim)
-        )
-        
-        self.attention = nn.MultiheadAttention(entity_dim, num_heads=4)
+        self.node_features = {}
+        self.edge_features = {}
 
-    def add_entity(self, 
-                   entity_id: str, 
-                   features: torch.Tensor,
-                   entity_type: Optional[str] = None) -> None:
-        encoded_features = self.entity_encoder(features)
-        self.entities[entity_id] = encoded_features
-        self.graph.add_node(entity_id, type=entity_type)
+    def add_node(self, node_id: str, features: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Add a node to the knowledge graph with optional features.
 
-    def add_relation(self,
-                    from_entity: str,
-                    to_entity: str,
-                    relation_type: str,
-                    features: Optional[torch.Tensor] = None) -> None:
-        if features is not None:
-            encoded_features = self.relation_encoder(features)
-            self.relations[(from_entity, to_entity)] = encoded_features
-        
-        self.graph.add_edge(from_entity, to_entity, 
-                           type=relation_type,
-                           features=features)
+        Args:
+            node_id: Unique identifier for the node
+            features: Optional dictionary of node features
+        """
+        self.graph.add_node(node_id)
+        if features:
+            self.node_features[node_id] = features
 
-    def query_subgraph(self, 
-                      center_entity: str,
-                      max_depth: int = 2) -> Tuple[nx.DiGraph, Dict[str, torch.Tensor]]:
-        subgraph = nx.ego_graph(self.graph, center_entity, radius=max_depth)
-         
-        entity_embeddings = {
-            node: self.entities[node]
-            for node in subgraph.nodes()
-            if node in self.entities
-        }
+    def add_relation(self, from_node: str, to_node: str, relation: str, 
+                    features: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Add a relation (edge) between two nodes with optional features.
 
-        return subgraph, entity_embeddings
+        Args:
+            from_node: Source node ID
+            to_node: Target node ID
+            relation: Type of relationship
+            features: Optional dictionary of edge features
+        """
+        self.add_node(from_node)
+        self.add_node(to_node)
 
-    def reason(self,
-               query_entity: str,
-               context_entities: List[str],) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Perform reasoning over the knowledge graph using attention."""
-        if not context_entities:
-            return self.entities[query_entity], None
+        self.graph.add_edge(from_node, to_node, relation=relation)
+        if features:
+            self.edge_features[(from_node, to_node)] = features
 
-        query = self.entities[query_entity].unsqueeze(0)
-        context = torch.stark([self.entities[e] for e in context_entities])
-        
-        attended_context, attention_weights = self.attention(
-            query_entity.unsqueeze(0),
-            context.unsqueeze(0),
-            context.unsqueeze(0)
-        )
+    def get_neighbors(self, node_id: str) -> List[str]:
+        """
+        Get all neighboring nodes for a given node.
 
-        return attended_context.squeeze(0), attention_weights
+        Args:
+            node_id: ID of the node to get neighbors for
 
-    def update_entity(self, 
-                      entity_id: str, 
-                      new_features: torch.Tensor) -> None:
-        """Update the features of an entity with new information."""
-        encoded_features = self.entity_encoder(new_features)
-        self.entities[entity_id] = encoded_features
+        Returns:
+            List of neighboring node IDs
+        """
+        return list(self.graph.successors(node_id))
 
-        
-        
+    def get_node_features(self, node_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get features for a specific node.
+
+        Args:
+            node_id: ID of the node
+
+        Returns:
+            Dictionary of node features if they exist, None otherwise
+        """
+        return self.node_features.get(node_id)
+
+    def get_edge_features(self, from_node: str, to_node: str) -> Optional[Dict[str, Any]]:
+        """
+        Get features for a specific edge.
+
+        Args:
+            from_node: Source node ID
+            to_node: Target node ID
+
+        Returns:
+            Dictionary of edge features if they exist, None otherwise
+        """
+        return self.edge_features.get((from_node, to_node))
+
+    def get_relations(self, from_node: str, to_node: str) -> List[str]:
+        """
+        Get all relations between two nodes.
+
+        Args:
+            from_node: Source node ID
+            to_node: Target node ID
+
+        Returns:
+            List of relation types between the nodes
+        """
+        return [self.graph[from_node][to_node]['relation']] if self.graph.has_edge(from_node, to_node) else []
+
+    def to_tensor(self) -> torch.Tensor:
+        """
+        Convert the graph structure to a tensor representation.
+
+        Returns:
+            Tensor representation of the graph
+        """
+        return torch.tensor(nx.to_numpy_array(self.graph), dtype=torch.float32)
