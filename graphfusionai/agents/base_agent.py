@@ -3,7 +3,6 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import uuid
 from abc import ABC, abstractmethod
-from copy import copy as shallow_copy
 from hashlib import md5
 from typing import Any, Dict, List, Optional, TypeVar
 
@@ -17,7 +16,6 @@ from graphfusionai.tools.base import BaseTool
 from graphfusionai.llm import LiteLLMClient
 
 T = TypeVar("T", bound="BaseAgent")
-
 
 class BaseAgent(ABC, BaseModel):
     """
@@ -76,7 +74,7 @@ class BaseAgent(ABC, BaseModel):
             if isinstance(tool, BaseTool):
                 processed_tools.append(tool)
             elif hasattr(tool, "name") and hasattr(tool, "func") and hasattr(tool, "description"):
-                processed_tools.append(BaseTool())
+                processed_tools.append(BaseTool())  # Placeholder for actual tool creation
             else:
                 raise ValueError(f"Invalid tool type: {type(tool)}. Each tool must be an instance of BaseTool or have the required attributes.")
         return processed_tools
@@ -180,4 +178,3 @@ class BaseAgent(ABC, BaseModel):
         """
         self.llm = llm_client
         self._llm_client = llm_client
-
