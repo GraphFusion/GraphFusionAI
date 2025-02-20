@@ -1,4 +1,3 @@
-
   
 ![graph-fusion-logo](https://github.com/user-attachments/assets/de5a4a09-a7e4-4b21-b3ec-01d5a3097ecd)
 
@@ -80,6 +79,142 @@ print(response)
 agent.update_graph([{"from": "AI", "to": "LLMs", "relation": "advancing"}])
 ```
 
+## **GraphFusionAI**
+
+GraphFusionAI is a powerful framework for building graph-based AI agents that can reason, learn, and interact with complex knowledge structures. It combines the power of graph neural networks with modern language models to create intelligent agents that can understand and manipulate structured information.
+
+## 🌟 Features
+
+- **Graph-Based Architecture**: Built on PyTorch and NetworkX for efficient graph operations
+- **Flexible Agent System**: Create custom agents with specific roles and capabilities
+- **Memory Management**: Persistent memory system for long-term knowledge retention
+- **LLM Integration**: Seamless integration with various language models (OpenAI, Anthropic, HuggingFace)
+- **Knowledge Graph**: Built-in knowledge graph system for structured information storage
+- **Tool System**: Extensible tool system for agent capabilities
+- **Task Management**: Sophisticated task scheduling and execution system
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+pip install graphfusionai
+```
+
+### Basic Usage
+
+```python
+from graphfusionai import GraphNetwork, BaseAgent
+from graphfusionai.memory import MemoryManager
+from graphfusionai.llm import LiteLLMClient
+
+# Initialize the graph network
+graph = GraphNetwork(feature_dim=768, hidden_dim=512)
+
+# Create an agent
+class MyAgent(BaseAgent):
+    def execute_task(self, task, context=None, tools=None):
+        # Implement task execution logic
+        pass
+
+    def create_agent_executor(self, tools=None):
+        # Implement executor creation
+        pass
+
+# Initialize components
+memory_manager = MemoryManager()
+llm_client = LiteLLMClient()
+
+# Create and configure agent
+agent = MyAgent(
+    role="Assistant",
+    goal="Help users with tasks",
+    backstory="I am a helpful AI assistant"
+)
+agent.set_memory_manager(memory_manager)
+agent.set_llm_client(llm_client)
+
+# Execute a task
+result = agent.execute_task({
+    "type": "query",
+    "content": "What is the capital of France?"
+})
+```
+
+## 📚 Documentation
+
+For detailed documentation, visit our [documentation site](https://docs.graphfusionai.dev).
+
+### Key Concepts
+
+- **Agents**: The core building blocks that perform tasks and interact with the environment
+- **Graph Network**: The underlying structure that represents knowledge and relationships
+- **Memory**: Long-term storage system for maintaining context and knowledge
+- **Tools**: Extensible capabilities that agents can use to perform tasks
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Python 3.8+
+- PyTorch 2.0+
+- CUDA (optional, for GPU support)
+
+### Setting Up Development Environment
+
+```bash
+git clone https://github.com/yourusername/GraphFusionAI.git
+cd GraphFusionAI
+pip install -r requirements.txt
+pip install -e .
+```
+
+### Running Tests
+
+```bash
+pytest tests/
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Code Style
+
+We follow PEP 8 guidelines and use Black for code formatting:
+
+```bash
+black graphfusionai/
+flake8 graphfusionai/
+mypy graphfusionai/
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔒 Security
+
+Please review our [Security Policy](SECURITY.md) for reporting vulnerabilities.
+
+## 🙏 Acknowledgments
+
+- PyTorch team for the amazing deep learning framework
+- NetworkX team for the graph algorithms
+- All our contributors and users
+
+## 📞 Contact
+
+- GitHub Issues: For bug reports and feature requests
+- Email: support@graphfusionai.dev
+- Twitter: [@GraphFusionAI](https://twitter.com/GraphFusionAI)
+
+## 📊 Status
+
+![Tests](https://github.com/yourusername/GraphFusionAI/workflows/Tests/badge.svg)
+![Documentation](https://github.com/yourusername/GraphFusionAI/workflows/Documentation/badge.svg)
+![PyPI version](https://badge.fury.io/py/graphfusionai.svg)
+
 ## **⚠️ Contributing: Please Read Carefully!**  
 
 This project **is not stable yet!** There are **bugs, missing features, and breaking changes.** If you're contributing, please:  
@@ -125,4 +260,3 @@ Join the conversation, share feedback, and collaborate on new ideas:
 ## License
 
 GraphFusionAI is open-source and licensed under the [MIT License](LICENSE).
-
