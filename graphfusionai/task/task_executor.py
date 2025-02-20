@@ -272,6 +272,58 @@ class TaskExecutor:
         
         return decision
     
+    def _handle_llm_step(
+        self,
+        step: Dict[str, Any],
+        agent: BaseAgent,
+        memory: MemoryManager,
+        knowledge_graph: KnowledgeGraph
+    ) -> Any:
+        """Handle LLM step."""
+        from ..llm import get_llm_provider
+        
+        # Get LLM provider
+        provider = get_llm_provider(step.get("provider", "default"))
+        
+        # Get context
+        context = self._get_llm_context(
+            step,
+            memory,
+            knowledge_graph
+        )
+        
+        # Add context to prompt if needed
+        prompt = step["prompt"]
+        if context:
+            prompt = f"Context:\n{context}\n\nTask:\n{prompt}"
+        
+        # Execute LLM call
+        response = provider.generate(
+            prompt=prompt,
+            **{k: v for k, v in step.items() 
+               if k in ["model", "temperature", "max_tokens", "stop"]}
+        )
+        
+        # Store response in memory
+        memory.add_memory({
+            "type": "llm_response",
+            "prompt": prompt,
+            "response": response.text,
+            "metrics": response.metrics,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # Update knowledge graph
+        knowledge_graph.add_node(
+            f"llm_response_{datetime.now().isoformat()}",
+            type="llm_response",
+            prompt=prompt,
+            response=response.text,
+            metrics=response.metrics
+        )
+        
+        return response.text
+    
     def _get_step_input(
         self,
         step: Dict[str, Any],
@@ -341,5 +393,30 @@ class TaskExecutor:
         patterns = knowledge_graph.get_decision_patterns()
         if patterns:
             context["patterns"] = patterns
+        
+        return context
+    
+    def _get_llm_context(
+        self,
+        step: Dict[str, Any],
+        memory: MemoryManager,
+        knowledge_graph: KnowledgeGraph
+    ) -> Dict[str, Any]:
+        """Get context for LLM task."""
+        context = {}
+        
+        # Get relevant memories
+        memories = memory.search_memories(
+            f"llm {step['llm_type']}"
+        )
+        if memories:
+            context["previous_responses"] = memories
+        
+        # Get relevant knowledge
+        knowledge = knowledge_graph.get_llm_patterns(
+            step["llm_type"]
+        )
+        if knowledge:
+            context["patterns"] = knowledge
         
         return context

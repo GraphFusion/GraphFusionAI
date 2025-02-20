@@ -23,6 +23,7 @@ class TaskType(Enum):
     TESTING = "testing"
     REVIEW = "review"
     DECISION = "decision"
+    CUSTOM = "custom"
 
 class BaseAgent:
     def __init__(self, name: str, skills: List[str] = None):
@@ -415,6 +416,38 @@ def create_complex_task_workflow() -> List[Dict]:
         ]
     }
     tasks.append(integration_task)
+    
+    # 6. Code Review Task (LLM)
+    code_review_task = {
+        "id": "code_review",
+        "name": "Code Review",
+        "type": TaskType.CUSTOM.value,
+        "description": "Review implementation code",
+        "steps": [
+            {
+                "type": "llm",
+                "prompt": """
+                Review this code for best practices and potential improvements:
+                
+                def process_data(data):
+                    results = []
+                    for item in data:
+                        if item > 0:
+                            results.append(item * 2)
+                    return results
+                """,
+                "provider": "openai",
+                "model": "gpt-4",
+                "temperature": 0.3,
+                "max_tokens": 500
+            }
+        ],
+        "status": TaskStatus.PENDING.value,
+        "priority": 2,
+        "required_skills": ["code_review", "python"],
+        "dependencies": ["integration"]
+    }
+    tasks.append(code_review_task)
     
     return tasks
 
