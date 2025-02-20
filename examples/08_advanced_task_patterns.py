@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import json
 import random
 from enum import Enum
+import time
 
 class TaskStatus(Enum):
     PENDING = "pending"
@@ -258,6 +259,59 @@ class TaskManager:
             if "alternate_task" in task:
                 self.add_task(task["alternate_task"])
 
+class MockLLMProvider:
+    """Mock LLM provider for demonstration."""
+    
+    def generate(self, prompt: str, **kwargs) -> Any:
+        """Generate mock response."""
+        from ..llm import LLMResponse
+        
+        # Simulate processing delay
+        time.sleep(0.5)
+        
+        # Return mock response based on prompt keywords
+        if "code" in prompt.lower():
+            response = """
+            Here's the optimized code:
+            ```python
+            def process_data(data: List[int]) -> List[int]:
+                return [x * 2 for x in data if x > 0]
+            ```
+            """
+        elif "review" in prompt.lower():
+            response = """
+            Code Review Feedback:
+            1. Add input validation
+            2. Use type hints
+            3. Add error handling
+            4. Improve documentation
+            5. Consider performance optimizations
+            """
+        elif "security" in prompt.lower():
+            response = """
+            Security Issues Found:
+            1. SQL Injection vulnerability
+            2. Weak password hashing
+            3. Missing input sanitization
+            4. Insufficient error handling
+            5. Session fixation risk
+            """
+        else:
+            response = "Mock response for: " + prompt[:100] + "..."
+        
+        return LLMResponse(
+            text=response,
+            token_count=len(response),
+            prompt_tokens=len(prompt),
+            completion_tokens=len(response),
+            total_cost=0.001
+        )
+
+def setup_mock_llm():
+    """Set up mock LLM provider."""
+    from ..llm import register_llm_provider
+    register_llm_provider("mock", MockLLMProvider())
+
 def create_complex_task_workflow() -> List[Dict]:
     """Create a complex task workflow with various patterns."""
     tasks = []
@@ -436,7 +490,7 @@ def create_complex_task_workflow() -> List[Dict]:
                             results.append(item * 2)
                     return results
                 """,
-                "provider": "openai",
+                "provider": "mock",
                 "model": "gpt-4",
                 "temperature": 0.3,
                 "max_tokens": 500
@@ -489,7 +543,7 @@ def create_llm_tasks() -> List[Dict]:
                 4. Failure scenarios and recovery
                 5. Monitoring and observability
                 """,
-                "provider": "openai",
+                "provider": "mock",
                 "model": "gpt-4",
                 "temperature": 0.3,
                 "max_tokens": 1000
@@ -550,7 +604,7 @@ def create_llm_tasks() -> List[Dict]:
                 4. Type hints and validation
                 5. Error handling strategy
                 """,
-                "provider": "openai",
+                "provider": "mock",
                 "model": "gpt-4",
                 "temperature": 0.2,
                 "max_tokens": 1000
@@ -612,7 +666,7 @@ def create_llm_tasks() -> List[Dict]:
                 5. Error handling
                 6. Best practices compliance
                 """,
-                "provider": "openai",
+                "provider": "mock",
                 "model": "gpt-4",
                 "temperature": 0.2,
                 "max_tokens": 1000
@@ -690,7 +744,7 @@ def create_llm_tasks() -> List[Dict]:
                 5. Rate limiting info
                 6. Detailed descriptions
                 """,
-                "provider": "openai",
+                "provider": "mock",
                 "model": "gpt-4",
                 "temperature": 0.2,
                 "max_tokens": 1000
@@ -777,6 +831,9 @@ def main():
         for agent_id, agent in agents.items():
             print(f"\nAgent: {agent.name}")
             print(f"Skills: {', '.join(agent.skills)}")
+        
+        # Set up mock LLM
+        setup_mock_llm()
         
         # Execute workflow
         print("\n3. Executing Task Workflow...")
