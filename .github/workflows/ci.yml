@@ -107,6 +107,6 @@ jobs:
     
     - name: Publish to PyPI
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        TWINE_USERNAME: ${{ github.secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ github.secrets.PYPI_PASSWORD }}
       run: twine upload dist/*
