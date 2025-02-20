@@ -451,6 +451,272 @@ def create_complex_task_workflow() -> List[Dict]:
     
     return tasks
 
+def create_llm_tasks() -> List[Dict]:
+    """Create LLM-specific tasks."""
+    tasks = []
+    
+    # 1. System Design Review
+    design_review = {
+        "id": "design_review",
+        "name": "System Design Review",
+        "type": TaskType.CUSTOM.value,
+        "description": "Review system architecture and design patterns",
+        "steps": [
+            {
+                "type": "llm",
+                "prompt": """
+                Review the following system design:
+                
+                1. Data Processing Layer:
+                   - Event streaming with Kafka
+                   - Real-time processing with Flink
+                   - Batch processing with Spark
+                
+                2. Storage Layer:
+                   - Time-series data in TimescaleDB
+                   - Document store in MongoDB
+                   - Cache layer with Redis
+                
+                3. API Layer:
+                   - GraphQL API gateway
+                   - REST microservices
+                   - gRPC internal services
+                
+                Please analyze:
+                1. Scalability considerations
+                2. Potential bottlenecks
+                3. Data consistency guarantees
+                4. Failure scenarios and recovery
+                5. Monitoring and observability
+                """,
+                "provider": "openai",
+                "model": "gpt-4",
+                "temperature": 0.3,
+                "max_tokens": 1000
+            }
+        ],
+        "status": TaskStatus.PENDING.value,
+        "priority": 3,
+        "required_skills": ["system_design", "architecture"],
+        "dependencies": []
+    }
+    tasks.append(design_review)
+    
+    # 2. Code Optimization
+    code_optimization = {
+        "id": "code_optimization",
+        "name": "Code Optimization",
+        "type": TaskType.CUSTOM.value,
+        "description": "Optimize data processing code",
+        "steps": [
+            {
+                "type": "llm",
+                "prompt": """
+                Optimize this data processing code for performance:
+                
+                def process_large_dataset(data: List[Dict]) -> Dict[str, List]:
+                    results = {"processed": [], "errors": []}
+                    for item in data:
+                        try:
+                            # Extract fields
+                            timestamp = item.get("timestamp")
+                            value = item.get("value", 0)
+                            category = item.get("category", "unknown")
+                            
+                            # Process data
+                            if timestamp and value > 0:
+                                processed_value = value * 2
+                                if category != "unknown":
+                                    processed_value *= 1.5
+                                
+                                # Format result
+                                result = {
+                                    "ts": timestamp,
+                                    "val": processed_value,
+                                    "cat": category
+                                }
+                                results["processed"].append(result)
+                        except Exception as e:
+                            results["errors"].append({
+                                "item": item,
+                                "error": str(e)
+                            })
+                    return results
+                
+                Consider:
+                1. Use of list comprehension or map/filter
+                2. Parallel processing opportunities
+                3. Memory efficiency
+                4. Type hints and validation
+                5. Error handling strategy
+                """,
+                "provider": "openai",
+                "model": "gpt-4",
+                "temperature": 0.2,
+                "max_tokens": 1000
+            }
+        ],
+        "status": TaskStatus.PENDING.value,
+        "priority": 2,
+        "required_skills": ["python", "optimization"],
+        "dependencies": []
+    }
+    tasks.append(code_optimization)
+    
+    # 3. Security Review
+    security_review = {
+        "id": "security_review",
+        "name": "Security Review",
+        "type": TaskType.CUSTOM.value,
+        "description": "Review system for security vulnerabilities",
+        "steps": [
+            {
+                "type": "llm",
+                "prompt": """
+                Perform a security review of this authentication code:
+                
+                @app.route("/api/login", methods=["POST"])
+                def login():
+                    data = request.get_json()
+                    username = data.get("username")
+                    password = data.get("password")
+                    
+                    user = db.users.find_one({"username": username})
+                    if user and check_password(password, user["password"]):
+                        session["user_id"] = str(user["_id"])
+                        return jsonify({
+                            "token": generate_token(user),
+                            "user": {
+                                "id": str(user["_id"]),
+                                "username": user["username"],
+                                "role": user["role"]
+                            }
+                        })
+                    return jsonify({"error": "Invalid credentials"}), 401
+                
+                def generate_token(user):
+                    return jwt.encode(
+                        {
+                            "user_id": str(user["_id"]),
+                            "role": user["role"],
+                            "exp": datetime.utcnow() + timedelta(days=1)
+                        },
+                        app.config["SECRET_KEY"]
+                    )
+                
+                Check for:
+                1. Authentication vulnerabilities
+                2. Session management issues
+                3. Token security
+                4. Input validation
+                5. Error handling
+                6. Best practices compliance
+                """,
+                "provider": "openai",
+                "model": "gpt-4",
+                "temperature": 0.2,
+                "max_tokens": 1000
+            }
+        ],
+        "status": TaskStatus.PENDING.value,
+        "priority": 3,
+        "required_skills": ["security", "python"],
+        "dependencies": []
+    }
+    tasks.append(security_review)
+    
+    # 4. API Documentation
+    api_docs = {
+        "id": "api_docs",
+        "name": "API Documentation",
+        "type": TaskType.CUSTOM.value,
+        "description": "Generate comprehensive API documentation",
+        "steps": [
+            {
+                "type": "llm",
+                "prompt": """
+                Generate OpenAPI documentation for this endpoint:
+                
+                @router.post("/api/v1/analysis")
+                async def analyze_data(
+                    request: AnalysisRequest,
+                    background_tasks: BackgroundTasks,
+                    current_user: User = Depends(get_current_user)
+                ) -> AnalysisResponse:
+                    \"\"\"
+                    Analyze data using specified models and parameters.
+                    
+                    Args:
+                        request: Analysis configuration and data
+                        background_tasks: Background task manager
+                        current_user: Authenticated user
+                    
+                    Returns:
+                        Analysis results and task ID
+                    \"\"\"
+                    # Validate request
+                    if not request.models or not request.data:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Missing required fields"
+                        )
+                    
+                    # Create analysis task
+                    task_id = await task_manager.create_task(
+                        task_type="analysis",
+                        params=request.dict(),
+                        user_id=current_user.id
+                    )
+                    
+                    # Queue background processing
+                    background_tasks.add_task(
+                        process_analysis,
+                        task_id=task_id,
+                        models=request.models,
+                        data=request.data,
+                        params=request.parameters
+                    )
+                    
+                    return AnalysisResponse(
+                        task_id=task_id,
+                        status="processing"
+                    )
+                
+                Include:
+                1. Request/response schemas
+                2. Authentication requirements
+                3. Error responses
+                4. Example requests
+                5. Rate limiting info
+                6. Detailed descriptions
+                """,
+                "provider": "openai",
+                "model": "gpt-4",
+                "temperature": 0.2,
+                "max_tokens": 1000
+            }
+        ],
+        "status": TaskStatus.PENDING.value,
+        "priority": 1,
+        "required_skills": ["documentation", "api_design"],
+        "dependencies": []
+    }
+    tasks.append(api_docs)
+    
+    return tasks
+
+def create_tasks() -> List[Dict]:
+    """Create all tasks including research, implementation, and LLM tasks."""
+    tasks = []
+    
+    # Add research tasks
+    tasks.extend(create_complex_task_workflow())
+    
+    # Add LLM tasks
+    tasks.extend(create_llm_tasks())
+    
+    return tasks
+
 def create_specialized_agents() -> Dict[str, BaseAgent]:
     """Create specialized agents for the workflow."""
     agents = {}
@@ -498,7 +764,7 @@ def main():
         
         # Create workflow
         print("\n1. Creating Complex Task Workflow...")
-        tasks = create_complex_task_workflow()
+        tasks = create_tasks()
         for task in tasks:
             print(f"\nTask: {task['name']}")
             print(f"Type: {task['type']}")

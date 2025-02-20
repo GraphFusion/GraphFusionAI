@@ -7,6 +7,7 @@ from .task import Task, TaskStatus
 from ..agents import BaseAgent
 from ..memory import MemoryManager
 from ..knowledge_graph import KnowledgeGraph
+import time
 
 class TaskExecutor:
     """
@@ -280,7 +281,7 @@ class TaskExecutor:
         knowledge_graph: KnowledgeGraph
     ) -> Any:
         """Handle LLM step."""
-        from ..llm import get_llm_provider
+        from ..llm import get_llm_provider, LLMError
         
         # Get LLM provider
         provider = get_llm_provider(step.get("provider", "default"))
@@ -297,32 +298,62 @@ class TaskExecutor:
         if context:
             prompt = f"Context:\n{context}\n\nTask:\n{prompt}"
         
-        # Execute LLM call
-        response = provider.generate(
-            prompt=prompt,
-            **{k: v for k, v in step.items() 
-               if k in ["model", "temperature", "max_tokens", "stop"]}
-        )
+        # Configure retry parameters
+        max_retries = step.get("max_retries", 3)
+        retry_delay = step.get("retry_delay", 1)
         
-        # Store response in memory
-        memory.add_memory({
-            "type": "llm_response",
-            "prompt": prompt,
-            "response": response.text,
-            "metrics": response.metrics,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-        # Update knowledge graph
-        knowledge_graph.add_node(
-            f"llm_response_{datetime.now().isoformat()}",
-            type="llm_response",
-            prompt=prompt,
-            response=response.text,
-            metrics=response.metrics
-        )
-        
-        return response.text
+        # Execute LLM call with retries
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                # Execute LLM call
+                response = provider.generate(
+                    prompt=prompt,
+                    **{k: v for k, v in step.items() 
+                       if k in ["model", "temperature", "max_tokens", "stop"]}
+                )
+                
+                # Validate response
+                if not response or not response.text.strip():
+                    raise LLMError("Empty response from LLM")
+                
+                # Store response in memory
+                memory.add_memory({
+                    "type": "llm_response",
+                    "prompt": prompt,
+                    "response": response.text,
+                    "metrics": response.metrics,
+                    "attempt": attempt + 1,
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                # Update knowledge graph
+                knowledge_graph.add_node(
+                    f"llm_response_{datetime.now().isoformat()}",
+                    type="llm_response",
+                    prompt=prompt,
+                    response=response.text,
+                    metrics=response.metrics,
+                    attempt=attempt + 1
+                )
+                
+                return response.text
+                
+            except Exception as e:
+                last_error = str(e)
+                if attempt < max_retries - 1:
+                    # Log retry attempt
+                    memory.add_memory({
+                        "type": "llm_error",
+                        "prompt": prompt,
+                        "error": last_error,
+                        "attempt": attempt + 1,
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                
+        # All retries failed
+        raise Exception(f"LLM task failed after {max_retries} attempts. Last error: {last_error}")
     
     def _get_step_input(
         self,
