@@ -5,7 +5,6 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import json
 import random
-from enum import Enum
 import time
 
 class TaskStatus(Enum):
@@ -259,13 +258,26 @@ class TaskManager:
             if "alternate_task" in task:
                 self.add_task(task["alternate_task"])
 
+class MockLLMResponse:
+    """Mock LLM response."""
+    def __init__(self, text: str, token_count: int, prompt_tokens: int, completion_tokens: int, total_cost: float):
+        self.text = text
+        self.token_count = token_count
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.total_cost = total_cost
+        self.metrics = {
+            "token_count": token_count,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_cost": total_cost
+        }
+
 class MockLLMProvider:
     """Mock LLM provider for demonstration."""
     
     def generate(self, prompt: str, **kwargs) -> Any:
         """Generate mock response."""
-        from ..llm import LLMResponse
-        
         # Simulate processing delay
         time.sleep(0.5)
         
@@ -299,7 +311,7 @@ class MockLLMProvider:
         else:
             response = "Mock response for: " + prompt[:100] + "..."
         
-        return LLMResponse(
+        return MockLLMResponse(
             text=response,
             token_count=len(response),
             prompt_tokens=len(prompt),
@@ -309,7 +321,7 @@ class MockLLMProvider:
 
 def setup_mock_llm():
     """Set up mock LLM provider."""
-    from ..llm import register_llm_provider
+    from graphfusionai.llm import register_llm_provider
     register_llm_provider("mock", MockLLMProvider())
 
 def create_complex_task_workflow() -> List[Dict]:
