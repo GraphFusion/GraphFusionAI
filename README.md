@@ -29,6 +29,7 @@ GraphFusionAI is an **open-source AI framework** designed to build **graph-power
 - **Tool-Based Extensibility** – Agents can use pluggable tools (search, diagnosis, etc.).  
 - **Self-Healing Mechanism** – Automatically prunes outdated or irrelevant memory.  
 - **Real-Time Learning** – Dynamically updates knowledge and adapts.  
+- **Simulation Environment** – Test and develop agent behaviors in a rich, interactive environment with terrain, resources, and visualization.
 
 ⚠️ **Known Issues:**  
 - **Memory module is unstable** – Needs better handling of storage, retrieval, and updates.  
@@ -36,6 +37,8 @@ GraphFusionAI is an **open-source AI framework** designed to build **graph-power
 - **LLM response parsing is unreliable** – Some responses need better structuring.  
 - **Graph updates may cause inconsistencies** – Edge cases in knowledge storage require fixes.  
 - **Tool integration is not fully tested** – Some tools might not work as expected.  
+- **Simulation performance may degrade** – Large environments with many agents can impact performance.
+- **Simulation visualization needs optimization** – Real-time rendering can be slow with many agents.
 
 ## **🚀 Quick Start: Create an AI Agent**  
 
@@ -256,6 +259,69 @@ Join the conversation, share feedback, and collaborate on new ideas:
 - **GitHub Discussions**: [Start a thread](https://github.com/GraphFusion/GraphFusionAI/discussions)
 
 🚀 **Let's build the future of graph-based AI together!**
+
+## 🎮 Simulation System
+
+GraphFusionAI includes a powerful simulation system for testing and developing multi-agent behaviors in controlled environments. The simulation system features:
+
+### 🌍 Rich Environment
+- **Dynamic Terrain**: Multiple terrain types (water, forest, mountains, etc.)
+- **Resource Management**: Resources with regeneration mechanics
+- **State Management**: Save/load environment states
+- **Event System**: Track and respond to environment events
+- **Metrics Tracking**: Monitor simulation performance
+
+### 🤖 Advanced Agents
+- **Specialized Roles**:
+  - Explorer Agents: Map and discover the environment
+  - Gatherer Agents: Collect and manage resources
+  - Communicator Agents: Share information across the team
+  - Defender Agents: Protect resources and territory
+  - Leader Agents: Coordinate team activities
+- **Agent Features**:
+  - Skill System: Agents improve abilities over time
+  - Knowledge Base: Agents maintain and share information
+  - Goal System: Agents pursue objectives autonomously
+  - Communication: Agents share information and coordinate
+
+### 📊 Visualization
+- Real-time terrain and resource visualization
+- Agent position and state tracking
+- Communication network display
+- Performance metrics plotting
+- Animation support with controls
+
+### Example Usage
+
+```python
+from graphfusionai.simulation import SimulationEnvironment, SimulationVisualizer
+from graphfusionai.simulation.environment import TerrainType, Resource
+from graphfusionai.simulation.agents import ExplorerAgent, GathererAgent
+
+# Create environment
+env = SimulationEnvironment("Demo", size=(20, 20))
+
+# Add terrain and resources
+env.add_terrain(TerrainType.WATER, (5, 5))
+env.add_resource(Resource(
+    type="food",
+    quantity=100,
+    position=(4, 5),
+    regeneration_rate=0.1
+))
+
+# Add agents
+explorer = ExplorerAgent("Explorer-1", (0, 0))
+gatherer = GathererAgent("Gatherer-1", (1, 1))
+env.add_agent(explorer)
+env.add_agent(gatherer)
+
+# Visualize
+vis = SimulationVisualizer(env)
+vis.start_animation()
+```
+
+For more examples, check the `examples/simulation_demo.py` file.
 
 ## License
 
