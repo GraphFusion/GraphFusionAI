@@ -96,16 +96,30 @@ class BaseAgent(ABC, BaseModel):
         return md5("|".join(source).encode(), usedforsecurity=False).hexdigest()
 
     @abstractmethod
-    def execute_task(self, task: Any, context: Optional[str] = None, tools: Optional[List[BaseTool]] = None) -> str:
+    def execute_task(self, task: Dict[str, Any], context: Optional[str] = None, tools: Optional[List[BaseTool]] = None) -> str:
         """
         Execute a given task with optional context and tools.
+
+        Args:
+            task (Dict[str, Any]): The task to execute, containing task parameters and requirements
+            context (Optional[str]): Additional context for task execution
+            tools (Optional[List[BaseTool]]): List of tools available for the task
+
+        Returns:
+            str: The result of the task execution
         """
         pass
 
     @abstractmethod
-    def create_agent_executor(self, tools: Optional[List[BaseTool]] = None) -> None:
+    def create_agent_executor(self, tools: Optional[List[BaseTool]] = None) -> Any:
         """
         Create and configure the agent executor.
+
+        Args:
+            tools (Optional[List[BaseTool]]): List of tools to configure the executor with
+
+        Returns:
+            Any: The configured agent executor instance
         """
         pass
 
@@ -113,6 +127,15 @@ class BaseAgent(ABC, BaseModel):
     def _parse_tools(self, tools: List[BaseTool]) -> List[BaseTool]:
         """
         Parse and validate the provided tools.
+
+        Args:
+            tools (List[BaseTool]): List of tools to parse and validate
+
+        Returns:
+            List[BaseTool]: List of validated and parsed tools
+
+        Raises:
+            ValueError: If any tool is invalid or incompatible
         """
         pass
 
@@ -120,21 +143,43 @@ class BaseAgent(ABC, BaseModel):
     def get_delegation_tools(self, agents: List["BaseAgent"]) -> List[BaseTool]:
         """
         Return the tools to be used for delegating tasks to other agents.
+
+        Args:
+            agents (List[BaseAgent]): List of available agents for delegation
+
+        Returns:
+            List[BaseTool]: List of delegation tools configured for the given agents
         """
         pass
 
     @abstractmethod
     def get_output_converter(
-        self, llm: Any, text: str, model: Optional[type[BaseModel]], instructions: str
-    ) -> Any:
+        self, llm: LiteLLMClient, text: str, model: Optional[type[BaseModel]], instructions: str
+    ) -> BaseModel:
         """
         Get a converter to transform LLM outputs into structured data.
+
+        Args:
+            llm (LiteLLMClient): The language model client instance
+            text (str): The text to convert
+            model (Optional[type[BaseModel]]): The target model type for conversion
+            instructions (str): Instructions for the conversion process
+
+        Returns:
+            BaseModel: The converted structured data
         """
         pass
 
     def interpolate_inputs(self, inputs: Dict[str, Any]) -> None:
         """
         Interpolate external inputs into the agent's role, goal, and backstory.
+
+        Args:
+            inputs (Dict[str, Any]): Dictionary of values to interpolate
+
+        Raises:
+            KeyError: If required keys are missing from inputs
+            ValueError: If interpolation fails
         """
         if self._original_role is None:
             self._original_role = self.role
@@ -143,13 +188,21 @@ class BaseAgent(ABC, BaseModel):
         if self._original_backstory is None:
             self._original_backstory = self.backstory
 
-        self.role = self._original_role.format(**inputs)
-        self.goal = self._original_goal.format(**inputs)
-        self.backstory = self._original_backstory.format(**inputs)
+        try:
+            self.role = self._original_role.format(**inputs)
+            self.goal = self._original_goal.format(**inputs)
+            self.backstory = self._original_backstory.format(**inputs)
+        except KeyError as e:
+            raise KeyError(f"Missing required input key: {e}")
+        except ValueError as e:
+            raise ValueError(f"Failed to interpolate inputs: {e}")
 
     def copy(self: T) -> T:
         """
         Create a shallow copy of the agent, excluding runtime-specific attributes.
+
+        Returns:
+            T: A new instance of the agent with copied attributes
         """
         exclude = {"id", "_graph", "_memory_manager", "_llm_client"}
         copied_data = self.dict(exclude=exclude)
@@ -162,19 +215,55 @@ class BaseAgent(ABC, BaseModel):
     def set_memory_manager(self, memory_manager: MemoryManager) -> None:
         """
         Set the memory manager for the agent.
+
+        Args:
+            memory_manager (MemoryManager): The memory manager instance
+
+        Raises:
+            ValueError: If memory_manager is None
         """
+        if memory_manager is None:
+            raise ValueError("Memory manager cannot be None")
         self.memory_manager = memory_manager
         self._memory_manager = memory_manager
 
     def set_knowledge_graph(self, knowledge_graph: KnowledgeGraph) -> None:
         """
         Set the knowledge graph instance for the agent.
+
+        Args:
+            knowledge_graph (KnowledgeGraph): The knowledge graph instance
+
+        Raises:
+            ValueError: If knowledge_graph is None
         """
+        if knowledge_graph is None:
+            raise ValueError("Knowledge graph cannot be None")
         self.knowledge_graph = knowledge_graph
 
     def set_llm_client(self, llm_client: LiteLLMClient) -> None:
         """
         Set the language model client for the agent.
+
+        Args:
+            llm_client (LiteLLMClient): The language model client instance
+
+        Raises:
+            ValueError: If llm_client is None
         """
+        if llm_client is None:
+            raise ValueError("LLM client cannot be None")
         self.llm = llm_client
         self._llm_client = llm_client
+
+    def cleanup(self) -> None:
+        """
+        Cleanup resources used by the agent.
+        Should be called when the agent is no longer needed.
+        """
+        if self._memory_manager:
+            self._memory_manager.cleanup()
+        if self.knowledge_graph:
+            self.knowledge_graph.cleanup()
+        if self._llm_client:
+            self._llm_client.cleanup()
