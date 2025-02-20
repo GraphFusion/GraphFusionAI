@@ -6,12 +6,24 @@ import os
 from typing import Dict, List, Any
 import json
 
+try:
+    from config import OPENAI_API_KEY
+except ImportError:
+    print("⚠️ No config.py found. Please create one with your OPENAI_API_KEY.")
+    print("Example config.py:")
+    print('OPENAI_API_KEY = "your-api-key-here"')
+    exit(1)
+
 class SimpleCodingAssistant:
     """A simplified coding assistant that uses LLM for various coding tasks."""
     
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = OPENAI_API_KEY):
         """Initialize the coding assistant."""
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        if not api_key or api_key == "your-api-key-here":
+            raise ValueError(
+                "Please set your OpenAI API key in config.py or pass it to the constructor"
+            )
+        self.api_key = api_key
         self.client = OpenAI(api_key=self.api_key)
         self.memory = []
         
