@@ -2,22 +2,30 @@ import threading
 import time
 from queue import Queue
 from collections import defaultdict
+import torch
 
 class Agent:
     """Represents an AI Agent that executes tasks."""
     
-    def __init__(self, name, capabilities=None):
+    def __init__(self, name, capabilities=None, embedding_dim=128):
         """
         Initializes an Agent.
 
         Args:
-            name (str): The agent's name.
-            capabilities (list): List of skills the agent can handle.
+            name (str): The agent's name
+            capabilities (list): List of skills the agent can handle
+            embedding_dim (int): Dimension of the agent's state embedding
         """
         self.name = name
         self.capabilities = capabilities or []
         self.status = "Idle"
         self.current_task = None
+        self.state_embedding = torch.zeros(embedding_dim)
+
+    def update_state(self, task_state):
+        """Updates agent's state based on current task."""
+        if task_state is not None:
+            self.state_embedding = task_state.clone()
 
     def assign_task(self, task, manager):
         """Assigns a task to the agent."""
@@ -26,21 +34,21 @@ class Agent:
             self.status = "Busy"
             print(f"🚀 {self.name} started task: {task}")
             time.sleep(2)  
-            self.complete_task(manager)  # ✅ Pass 'manager' here
-
+            self.complete_task(manager)
 
     def complete_task(self, manager):
         """Marks task as completed and notifies manager."""
         print(f"✅ {self.name} completed task: {self.current_task.name}")
-        manager.mark_task_completed(self.current_task)  
+        manager.mark_task_completed(self.current_task)
         self.current_task = None
         self.status = "Idle"
+        self.state_embedding.zero_()
 
 
 class Task:
     """Represents a task with dependencies and required capabilities."""
     
-    def __init__(self, name, priority=1, duration=2, dependencies=None, required_capabilities=None):
+    def __init__(self, name, priority=1, duration=2, dependencies=None, required_capabilities=None, task_state=None):
         """
         Initializes a task.
 
@@ -50,6 +58,7 @@ class Task:
             duration (int): Time (seconds) the task takes to complete.
             dependencies (list): List of dependent task names.
             required_capabilities (list): List of capabilities needed.
+            task_state (torch.Tensor): Neural state of the task
         """
         self.name = name
         self.priority = priority
@@ -57,6 +66,7 @@ class Task:
         self.dependencies = dependencies or []
         self.required_capabilities = required_capabilities or []
         self.completed = False
+        self.task_state = task_state
 
     def is_ready(self, completed_tasks):
         """Checks if all dependencies are met before execution."""
@@ -76,37 +86,65 @@ class Task:
 
 
 class AgentManager:
-    """Manages multiple AI agents and task assignments."""
+    """Manages multiple AI agents and task assignments using neural graph states."""
     
-    def __init__(self):
+    def __init__(self, dynamic=True, embedding_dim=128):
         self.agents = []
         self.task_queue = Queue()
-        self.task_dependencies = defaultdict(list)
         self.completed_tasks = set()
         self.lock = threading.Lock()
+        self.dynamic = dynamic
+        self.embedding_dim = embedding_dim
 
     def register_agent(self, name, capabilities=None):
         """Registers a new agent."""
-        agent = Agent(name, capabilities)
+        agent = Agent(name, capabilities, self.embedding_dim)
         self.agents.append(agent)
         print(f"🆕 Registered Agent: {name}")
 
-    def list_agents(self):
-        """Lists all registered agents."""
-        return [(agent.name, agent.status, agent.capabilities) for agent in self.agents]
+    def get_available_agent(self, task_state=None):
+        """
+        Gets an available agent considering task state compatibility.
+        
+        Args:
+            task_state (torch.Tensor, optional): Neural state of the task
+            
+        Returns:
+            Agent: Available agent with highest compatibility
+        """
+        available_agents = [a for a in self.agents if a.status == "Idle"]
+        
+        if not available_agents:
+            return None
+            
+        if task_state is None or not self.dynamic:
+            return available_agents[0]
+            
+        # Find agent with most compatible state
+        compatibility_scores = [
+            torch.cosine_similarity(a.state_embedding.unsqueeze(0), task_state.unsqueeze(0))
+            for a in available_agents
+        ]
+        
+        best_agent_idx = torch.argmax(torch.tensor(compatibility_scores))
+        best_agent = available_agents[best_agent_idx]
+        
+        # Update agent state
+        best_agent.update_state(task_state)
+        
+        return best_agent
 
     def assign_task(self, task):
         """Assigns a task to an available agent with the required capabilities."""
         with self.lock:
             if not task.is_ready(self.completed_tasks):
                 print(f"⏳ Task '{task.name}' is waiting for dependencies: {task.dependencies}")
-                self.task_dependencies[task.name] = task
                 return
 
-            for agent in self.agents:
-                if agent.status == "Idle" and any(skill in agent.capabilities for skill in task.required_capabilities):
-                    threading.Thread(target=agent.assign_task, args=(task, self)).start()  # ✅ Pass 'self' as 'manager'
-                    return
+            agent = self.get_available_agent(task.task_state)
+            if agent is not None:
+                threading.Thread(target=agent.assign_task, args=(task, self)).start()
+                return
             
             print(f"🔄 No suitable idle agents available, queuing task: {task.name}")
             self.task_queue.put(task)
@@ -119,25 +157,15 @@ class AgentManager:
                     if agent.status == "Idle":
                         task = self.task_queue.get()
                         if task.is_ready(self.completed_tasks):
-                            threading.Thread(target=agent.assign_task, args=(task,)).start()
+                            threading.Thread(target=agent.assign_task, args=(task, self)).start()
                         else:
                             print(f"⏳ Task '{task.name}' is still waiting for dependencies.")
 
     def mark_task_completed(self, task):
-        """Marks a task as completed and checks if dependent tasks can start."""
+        """Marks a task as completed."""
         with self.lock:
             self.completed_tasks.add(task.name)
             print(f"🎯 Task '{task.name}' marked as completed.")
-
-        for dependent_task_name in list(self.task_dependencies.keys()):
-            dependent_task = self.task_dependencies[dependent_task_name]
-            if dependent_task.is_ready(self.completed_tasks):
-                print(f"🚀 Now executing dependent task: {dependent_task.name}")
-                task_to_pop = self.task_dependencies.pop(dependent_task_name, None) 
-                if task_to_pop:
-                    self.assign_task(task_to_pop)
-            else:
-                print(f"⚠️ Task '{dependent_task_name}' no longer exists in dependencies.")
 
     def start_task_queue_monitor(self):
         """Starts monitoring the task queue in a separate thread."""
@@ -153,10 +181,10 @@ if __name__ == "__main__":
     manager.register_agent("Agent Gamma", capabilities=["reporting", "data_analysis"])
 
     # Create tasks with dependencies
-    task1 = Task(name="Data Cleaning", priority=2, duration=2, required_capabilities=["data_processing"])
-    task2 = Task(name="Model Training", priority=1, duration=3, dependencies=["Data Cleaning"], required_capabilities=["ml_training"])
-    task3 = Task(name="Report Summarization", priority=3, dependencies=["Model Training"], required_capabilities=["reporting"])
-    task4 = Task(name="Anomaly Detection", priority=2, dependencies=["Data Cleaning"], required_capabilities=["data_analysis"])
+    task1 = Task(name="Data Cleaning", priority=2, duration=2, required_capabilities=["data_processing"], task_state=torch.randn(128))
+    task2 = Task(name="Model Training", priority=1, duration=3, dependencies=["Data Cleaning"], required_capabilities=["ml_training"], task_state=torch.randn(128))
+    task3 = Task(name="Report Summarization", priority=3, dependencies=["Model Training"], required_capabilities=["reporting"], task_state=torch.randn(128))
+    task4 = Task(name="Anomaly Detection", priority=2, dependencies=["Data Cleaning"], required_capabilities=["data_analysis"], task_state=torch.randn(128))
 
     # Assign tasks
     manager.assign_task(task1)
