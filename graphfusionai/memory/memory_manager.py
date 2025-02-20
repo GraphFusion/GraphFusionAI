@@ -16,6 +16,7 @@ from graphfusionai.memory.retrieval import MemoryRetrieval
 from graphfusionai.memory.hierarchical_memory import MemoryHierarchy
 from graphfusionai.memory.advanced_cache import AdvancedCache
 from graphfusionai.memory.memory_analytics import MemoryAnalytics
+from graphfusionai.memory.attention_system import AttentionSystem
 import redis
 
 class MemoryManager:
@@ -31,20 +32,18 @@ class MemoryManager:
                  checkpoint_dir: Optional[str] = None,
                  redis_url: Optional[str] = None,
                  vector_dim: int = 768,
-                 max_cache_bytes: int = 1024*1024*1024):  # 1GB
+                 max_cache_bytes: int = 1024*1024*1024,  # 1GB
+                 attention_heads: int = 8):
         """
-        Enhanced memory manager with hierarchical storage and advanced caching.
-        
-        Args:
-            embedding_model: Model for generating embeddings
-            cache_size: Size of local memory cache
-            consolidation_threshold: Threshold for memory consolidation
-            checkpoint_dir: Directory for memory checkpoints
-            redis_url: Optional Redis URL for distributed caching
-            vector_dim: Dimension of memory vectors
-            max_cache_bytes: Maximum cache size in bytes
+        Enhanced memory manager with focused attention and hierarchical storage.
         """
         self.embedding_model = embedding_model or EmbeddingModel()
+        
+        # Initialize attention system
+        self.attention_system = AttentionSystem(
+            dim=vector_dim,
+            num_heads=attention_heads
+        )
         
         # Initialize hierarchical memory
         self.hierarchy = MemoryHierarchy(vector_dim)
@@ -76,6 +75,7 @@ class MemoryManager:
         self.importance_scores: Dict[str, float] = {}
         
         # Configuration
+        self.vector_dim = vector_dim
         self.consolidation_threshold = consolidation_threshold
         self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir else Path("./memory_checkpoints")
         self.checkpoint_dir.mkdir(exist_ok=True)
@@ -137,8 +137,9 @@ class MemoryManager:
                                data: Union[str, List[str]], 
                                tags: Optional[List[str]] = None,
                                importance: float = 1.0,
-                               metadata: Optional[Dict[str, Any]] = None) -> Union[str, List[str]]:
-        """Store memory with hierarchical storage and advanced caching"""
+                               metadata: Optional[Dict[str, Any]] = None,
+                               task_id: Optional[int] = None) -> Union[str, List[str]]:
+        """Store memory with attention-based importance scoring"""
         if isinstance(data, str):
             data = [data]
             single_input = True
@@ -151,6 +152,22 @@ class MemoryManager:
         for text in data:
             # Generate embedding
             vector = await self._get_embedding_async(text)
+            
+            # Apply attention to adjust importance
+            if len(self.memory_store) > 0:
+                memory_vectors = torch.stack([mem["embedding"] for mem in self.memory_store.values()])
+                importance_scores = torch.tensor([self.importance_scores.get(k, 0.0) for k in self.memory_store.keys()])
+                
+                # Update attention focus with new memory
+                adjusted_importance = importance * self.attention_system.update_focus(
+                    query_vector=vector,
+                    memory_vectors=memory_vectors,
+                    importance_scores=importance_scores,
+                    timestamps=torch.tensor([start_time])
+                ).mean().item()
+            else:
+                adjusted_importance = importance
+            
             memory_key = str(hash(tuple(vector.tolist())))
             
             # Prepare memory data
@@ -160,8 +177,8 @@ class MemoryManager:
                 "embedding": vector
             }
             
-            # Store in hierarchy
-            hierarchy_key = self.hierarchy.store(memory_key, memory_data, importance)
+            # Store with adjusted importance
+            hierarchy_key = self.hierarchy.store(memory_key, memory_data, adjusted_importance)
             
             # Store in cache
             size_bytes = sys.getsizeof(text) + vector.element_size() * vector.nelement()
@@ -177,90 +194,99 @@ class MemoryManager:
             # Update local tracking
             if tags:
                 self.memory_tags[memory_key] = tags
-            self.importance_scores[memory_key] = importance
+            self.importance_scores[memory_key] = adjusted_importance
             self.memory_timestamps[memory_key] = datetime.now().timestamp()
             
             memory_keys.append(hierarchy_key)
+            
+            # Update attention context
+            self.attention_system.update_context_window(memory_key)
+            if task_id is not None:
+                self.attention_system.context.active_tasks.append(str(task_id))
             
             # Record analytics
             self.analytics.record_memory_access(
                 memory_key=memory_key,
                 query_latency_ms=(datetime.now().timestamp() - start_time) * 1000,
                 cache_hit=False,
-                importance=importance
+                importance=adjusted_importance
             )
             
         return memory_keys[0] if single_input else memory_keys
-    
+
     async def retrieve_memory_async(self,
                                   query: str,
                                   top_k: int = 5,
                                   min_similarity: float = 0.0,
                                   tags: Optional[List[str]] = None,
-                                  strategy: str = 'hybrid') -> List[Dict[str, Any]]:
-        """Enhanced memory retrieval with hierarchy and caching"""
+                                  strategy: str = 'hybrid',
+                                  task_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Enhanced memory retrieval with focused attention"""
         start_time = datetime.now().timestamp()
         query_vector = await self._get_embedding_async(query)
         
-        # Try cache first
-        cached_results = []
-        cache_hits = 0
-        
-        if strategy in ['hybrid', 'exact']:
-            results = await self._exact_search(query_vector, top_k)
-            for key, similarity, metadata in results:
-                cached_data = await self.cache.get(key)
-                if cached_data:
-                    cached_results.append({
-                        "key": key,
-                        "data": cached_data["data"],
-                        "similarity": similarity,
-                        "metadata": metadata
-                    })
-                    cache_hits += 1
-                    
-        # If not enough results, search memory hierarchy
-        if len(cached_results) < top_k:
-            remaining_k = top_k - len(cached_results)
+        # Update attention focus
+        if len(self.memory_store) > 0:
+            memory_vectors = torch.stack([mem["embedding"] for mem in self.memory_store.values()])
+            memory_keys = list(self.memory_store.keys())
+            importance_scores = torch.tensor([self.importance_scores.get(k, 0.0) for k in memory_keys])
+            timestamps = torch.tensor([self.memory_timestamps.get(k, 0.0) for k in memory_keys])
             
-            if strategy == 'approximate':
-                hierarchy_results = self.memory_index.search(query_vector, remaining_k)
-            else:  # hybrid
-                exact_results = await self._exact_search(query_vector, remaining_k // 2)
-                approx_results = self.memory_index.search(query_vector, remaining_k // 2)
-                hierarchy_results = self._merge_results(exact_results, approx_results)
-                
-            for key, similarity, metadata in hierarchy_results:
-                if similarity >= min_similarity:
-                    if not tags or any(tag in self.memory_tags.get(key, []) for tag in tags):
-                        # Try to get from hierarchy
-                        for level in ["working", "short_term", "long_term"]:
-                            memory_data = self.hierarchy.retrieve(key, level)
-                            if memory_data:
-                                cached_results.append({
-                                    "key": key,
-                                    "data": memory_data["data"],
-                                    "similarity": similarity,
-                                    "metadata": metadata
-                                })
-                                # Store in cache for future access
-                                size_bytes = (sys.getsizeof(memory_data["data"]) + 
-                                           memory_data["embedding"].element_size() * 
-                                           memory_data["embedding"].nelement())
-                                await self.cache.put(key, memory_data, size_bytes)
-                                break
-                                
-        # Record analytics
-        query_time = (datetime.now().timestamp() - start_time) * 1000
-        self.analytics.record_memory_access(
-            memory_key="query",
-            query_latency_ms=query_time,
-            cache_hit=cache_hits > 0,
-            importance=1.0
-        )
-        
-        return cached_results[:top_k]
-    
+            # Update attention focus
+            focus_vector = self.attention_system.update_focus(
+                query_vector=query_vector,
+                memory_vectors=memory_vectors,
+                importance_scores=importance_scores,
+                timestamps=timestamps
+            )
+            
+            # Apply task-specific attention if task_id provided
+            if task_id is not None:
+                memory_vectors = self.attention_system.apply_task_attention(
+                    memory_vectors=memory_vectors,
+                    task_ids=[task_id]
+                )
+            
+            # Get focused memories
+            focused_memories, attention_weights = self.attention_system.get_focused_memories(
+                memory_vectors=memory_vectors,
+                query_vector=query_vector,
+                top_k=top_k
+            )
+            
+            # Convert focused memories to results
+            results = []
+            for i, (memory_vec, weight) in enumerate(zip(focused_memories, attention_weights)):
+                # Find matching memory
+                for key, memory in self.memory_store.items():
+                    if torch.allclose(memory["embedding"], memory_vec):
+                        results.append({
+                            "key": key,
+                            "data": memory["data"],
+                            "similarity": weight.item(),
+                            "metadata": memory["metadata"]
+                        })
+                        # Update context window
+                        self.attention_system.update_context_window(key)
+                        break
+            
+            # Record analytics
+            query_time = (datetime.now().timestamp() - start_time) * 1000
+            self.analytics.record_memory_access(
+                memory_key="query",
+                query_latency_ms=query_time,
+                cache_hit=len(results) > 0,
+                importance=1.0
+            )
+            
+            # Analyze attention
+            attention_stats = self.attention_system.analyze_attention()
+            self.analytics.record_attention_metrics(attention_stats)
+            
+            return results[:top_k]
+            
+        return []
+
     async def _get_embedding_async(self, text: str) -> torch.Tensor:
         """Get embedding asynchronously"""
         return await asyncio.get_event_loop().run_in_executor(
