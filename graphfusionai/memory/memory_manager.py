@@ -13,6 +13,9 @@ from graphfusionai.memory.memory_index import MemoryIndex
 from graphfusionai.memory.dynamic_memory_cell import DynamicMemoryCell
 from graphfusionai.memory.embeddings import EmbeddingModel
 from graphfusionai.memory.retrieval import MemoryRetrieval
+from graphfusionai.memory.hierarchical_memory import MemoryHierarchy
+from graphfusionai.memory.advanced_cache import AdvancedCache
+from graphfusionai.memory.memory_analytics import MemoryAnalytics
 import redis
 
 class MemoryManager:
@@ -27,9 +30,10 @@ class MemoryManager:
                  consolidation_threshold: float = 0.85,
                  checkpoint_dir: Optional[str] = None,
                  redis_url: Optional[str] = None,
-                 vector_dim: int = 768):
+                 vector_dim: int = 768,
+                 max_cache_bytes: int = 1024*1024*1024):  # 1GB
         """
-        Enhanced memory manager with distributed caching and advanced retrieval.
+        Enhanced memory manager with hierarchical storage and advanced caching.
         
         Args:
             embedding_model: Model for generating embeddings
@@ -38,20 +42,29 @@ class MemoryManager:
             checkpoint_dir: Directory for memory checkpoints
             redis_url: Optional Redis URL for distributed caching
             vector_dim: Dimension of memory vectors
+            max_cache_bytes: Maximum cache size in bytes
         """
         self.embedding_model = embedding_model or EmbeddingModel()
-        self.memory_cell = DynamicMemoryCell(
-            input_dim=vector_dim,
-            memory_dim=1000,
-            context_dim=vector_dim,
-            compression_ratio=0.5
+        
+        # Initialize hierarchical memory
+        self.hierarchy = MemoryHierarchy(vector_dim)
+        
+        # Initialize advanced cache
+        self.cache = AdvancedCache(
+            max_size_bytes=max_cache_bytes,
+            max_items=cache_size,
+            policy="adaptive",
+            prefetch_threshold=0.8
         )
         
         # Initialize memory index
         self.memory_index = MemoryIndex(
             vector_dim=vector_dim,
-            index_type='HNSW'  # Use HNSW for fast approximate search
+            index_type='HNSW'
         )
+        
+        # Initialize analytics
+        self.analytics = MemoryAnalytics(window_size=1000)
         
         # Initialize distributed cache if Redis URL provided
         self.redis_client = redis.from_url(redis_url) if redis_url else None
@@ -61,11 +74,8 @@ class MemoryManager:
         self.memory_tags: Dict[str, List[str]] = {}
         self.memory_timestamps: Dict[str, float] = {}
         self.importance_scores: Dict[str, float] = {}
-        self.retrieval = MemoryRetrieval(embedding_model=self.embedding_model)
         
-        # Memory management
-        self.cache = {}
-        self.cache_size = cache_size
+        # Configuration
         self.consolidation_threshold = consolidation_threshold
         self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir else Path("./memory_checkpoints")
         self.checkpoint_dir.mkdir(exist_ok=True)
@@ -73,6 +83,10 @@ class MemoryManager:
         # Async components
         self.thread_pool = ThreadPoolExecutor(max_workers=4)
         self.background_tasks = set()
+        
+        # Start background tasks
+        self._schedule_background_task(self._maintain_memory())
+        self._schedule_background_task(self.cache.process_prefetch_queue(self._fetch_memory))
         
     def store_memory(self, 
                     data: Union[str, List[str]], 
@@ -124,7 +138,7 @@ class MemoryManager:
                                tags: Optional[List[str]] = None,
                                importance: float = 1.0,
                                metadata: Optional[Dict[str, Any]] = None) -> Union[str, List[str]]:
-        """Asynchronous memory storage with distributed caching"""
+        """Store memory with hierarchical storage and advanced caching"""
         if isinstance(data, str):
             data = [data]
             single_input = True
@@ -132,17 +146,26 @@ class MemoryManager:
             single_input = False
             
         memory_keys = []
+        start_time = datetime.now().timestamp()
+        
         for text in data:
             # Generate embedding
             vector = await self._get_embedding_async(text)
             memory_key = str(hash(tuple(vector.tolist())))
             
-            # Store in local memory
-            self.memory_store[memory_key] = {
+            # Prepare memory data
+            memory_data = {
                 "data": text,
                 "metadata": metadata or {},
                 "embedding": vector
             }
+            
+            # Store in hierarchy
+            hierarchy_key = self.hierarchy.store(memory_key, memory_data, importance)
+            
+            # Store in cache
+            size_bytes = sys.getsizeof(text) + vector.element_size() * vector.nelement()
+            await self.cache.put(memory_key, memory_data, size_bytes)
             
             # Add to memory index
             self.memory_index.add_memory(memory_key, vector, metadata or {})
@@ -151,19 +174,22 @@ class MemoryManager:
             if self.redis_client:
                 await self._store_in_cache_async(memory_key, text, vector, metadata)
             
+            # Update local tracking
             if tags:
                 self.memory_tags[memory_key] = tags
-                
             self.importance_scores[memory_key] = importance
             self.memory_timestamps[memory_key] = datetime.now().timestamp()
             
-            # Add to dynamic memory cell
-            self.memory_cell.update_memory(vector, vector)
-            memory_keys.append(memory_key)
+            memory_keys.append(hierarchy_key)
             
-        # Schedule background optimization
-        self._schedule_background_task(self._optimize_memories())
-        
+            # Record analytics
+            self.analytics.record_memory_access(
+                memory_key=memory_key,
+                query_latency_ms=(datetime.now().timestamp() - start_time) * 1000,
+                cache_hit=False,
+                importance=importance
+            )
+            
         return memory_keys[0] if single_input else memory_keys
     
     async def retrieve_memory_async(self,
@@ -172,43 +198,68 @@ class MemoryManager:
                                   min_similarity: float = 0.0,
                                   tags: Optional[List[str]] = None,
                                   strategy: str = 'hybrid') -> List[Dict[str, Any]]:
-        """
-        Enhanced asynchronous memory retrieval with multiple search strategies.
-        
-        Args:
-            query: Search query
-            top_k: Number of results
-            min_similarity: Minimum similarity threshold
-            tags: Optional tags to filter by
-            strategy: Search strategy ('exact', 'approximate', or 'hybrid')
-        """
+        """Enhanced memory retrieval with hierarchy and caching"""
+        start_time = datetime.now().timestamp()
         query_vector = await self._get_embedding_async(query)
         
-        if strategy == 'exact':
+        # Try cache first
+        cached_results = []
+        cache_hits = 0
+        
+        if strategy in ['hybrid', 'exact']:
             results = await self._exact_search(query_vector, top_k)
-        elif strategy == 'approximate':
-            results = self.memory_index.search(query_vector, top_k)
-        else:  # hybrid
-            # Combine exact and approximate search results
-            exact_results = await self._exact_search(query_vector, top_k // 2)
-            approx_results = self.memory_index.search(query_vector, top_k // 2)
-            results = self._merge_results(exact_results, approx_results)
+            for key, similarity, metadata in results:
+                cached_data = await self.cache.get(key)
+                if cached_data:
+                    cached_results.append({
+                        "key": key,
+                        "data": cached_data["data"],
+                        "similarity": similarity,
+                        "metadata": metadata
+                    })
+                    cache_hits += 1
+                    
+        # If not enough results, search memory hierarchy
+        if len(cached_results) < top_k:
+            remaining_k = top_k - len(cached_results)
             
-        # Filter by similarity and tags
-        filtered_results = []
-        for key, similarity, metadata in results:
-            if similarity >= min_similarity:
-                if not tags or any(tag in self.memory_tags.get(key, []) for tag in tags):
-                    memory_data = await self._get_memory_data_async(key)
-                    if memory_data:
-                        filtered_results.append({
-                            "key": key,
-                            "data": memory_data["data"],
-                            "similarity": similarity,
-                            "metadata": metadata
-                        })
-                        
-        return filtered_results[:top_k]
+            if strategy == 'approximate':
+                hierarchy_results = self.memory_index.search(query_vector, remaining_k)
+            else:  # hybrid
+                exact_results = await self._exact_search(query_vector, remaining_k // 2)
+                approx_results = self.memory_index.search(query_vector, remaining_k // 2)
+                hierarchy_results = self._merge_results(exact_results, approx_results)
+                
+            for key, similarity, metadata in hierarchy_results:
+                if similarity >= min_similarity:
+                    if not tags or any(tag in self.memory_tags.get(key, []) for tag in tags):
+                        # Try to get from hierarchy
+                        for level in ["working", "short_term", "long_term"]:
+                            memory_data = self.hierarchy.retrieve(key, level)
+                            if memory_data:
+                                cached_results.append({
+                                    "key": key,
+                                    "data": memory_data["data"],
+                                    "similarity": similarity,
+                                    "metadata": metadata
+                                })
+                                # Store in cache for future access
+                                size_bytes = (sys.getsizeof(memory_data["data"]) + 
+                                           memory_data["embedding"].element_size() * 
+                                           memory_data["embedding"].nelement())
+                                await self.cache.put(key, memory_data, size_bytes)
+                                break
+                                
+        # Record analytics
+        query_time = (datetime.now().timestamp() - start_time) * 1000
+        self.analytics.record_memory_access(
+            memory_key="query",
+            query_latency_ms=query_time,
+            cache_hit=cache_hits > 0,
+            importance=1.0
+        )
+        
+        return cached_results[:top_k]
     
     async def _get_embedding_async(self, text: str) -> torch.Tensor:
         """Get embedding asynchronously"""
@@ -274,21 +325,37 @@ class MemoryManager:
         self.background_tasks.add(task)
         task.add_done_callback(self.background_tasks.discard)
         
-    async def _optimize_memories(self):
-        """Background task to optimize memory storage"""
-        # Optimize memory index
-        self.memory_index.optimize()
-        
-        # Compress memories if needed
-        if len(self.memory_store) > self.cache_size:
-            self.memory_cell.compress_memories()
+    async def _maintain_memory(self):
+        """Background task for memory maintenance"""
+        while True:
+            # Maintain hierarchy
+            self.hierarchy.maintain()
             
-        # Consolidate similar memories
-        await self.consolidate_memories_async()
-        
-        # Prune old memories
-        self.prune_memories()
-        
+            # Optimize memory index
+            self.memory_index.optimize()
+            
+            # Generate analytics report
+            report = self.analytics.generate_analytics_report()
+            
+            # Adjust cache parameters based on analytics
+            if report["current_metrics"]["cache_hit_rate"] < 0.5:
+                # Increase cache size or adjust prefetch threshold
+                self.cache.prefetch_threshold *= 0.95
+            
+            await asyncio.sleep(60)  # Run maintenance every minute
+            
+    async def _fetch_memory(self, key: str) -> Optional[Tuple[Dict[str, Any], int]]:
+        """Fetch memory for cache prefetching"""
+        # Try hierarchy first
+        for level in ["working", "short_term", "long_term"]:
+            memory_data = self.hierarchy.retrieve(key, level)
+            if memory_data:
+                size_bytes = (sys.getsizeof(memory_data["data"]) + 
+                            memory_data["embedding"].element_size() * 
+                            memory_data["embedding"].nelement())
+                return memory_data, size_bytes
+        return None
+    
     def retrieve_memory(self, 
                        query: str,
                        top_k: int = 5,
