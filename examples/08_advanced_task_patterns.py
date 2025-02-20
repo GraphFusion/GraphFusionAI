@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import json
 import random
 import time
+from enum import Enum
 
 class TaskStatus(Enum):
     PENDING = "pending"
@@ -501,6 +502,13 @@ def create_complex_task_workflow() -> List[Dict]:
                         if item > 0:
                             results.append(item * 2)
                     return results
+                
+                Consider:
+                1. Use of list comprehension or map/filter
+                2. Parallel processing opportunities
+                3. Memory efficiency
+                4. Type hints and validation
+                5. Error handling strategy
                 """,
                 "provider": "mock",
                 "model": "gpt-4",
