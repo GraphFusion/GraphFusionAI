@@ -1,9 +1,28 @@
-from typing import Any, Dict, Optional, List, Callable
+"""
+Base tool implementation with enhanced features.
+"""
+from typing import Any, Dict, Optional, List, Callable, Union, TypeVar
 import asyncio
 import time
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
+from abc import ABC, abstractmethod
+from pydantic import BaseModel, Field
+
+T = TypeVar('T', bound='BaseTool')
+
+class ToolError(Exception):
+    """Base exception for tool-related errors."""
+    pass
+
+class ToolTimeoutError(ToolError):
+    """Raised when tool execution exceeds timeout."""
+    pass
+
+class ToolValidationError(ToolError):
+    """Raised when tool input validation fails."""
+    pass
 
 class ToolMetrics:
     """Tracks performance metrics for tools."""
@@ -51,120 +70,139 @@ def retry(max_attempts: int = 3, delay: float = 1.0):
         return wrapper
     return decorator
 
-class BaseTool:
-    """
-    Enhanced base class for tools with advanced features and metrics.
-    """
-    
-    def __init__(self, name: str, description: str, version: str = "1.0.0",
-                 async_support: bool = False, max_retries: int = 3,
-                 timeout: float = 30.0, cache_ttl: int = 300):
+class ToolConfig(BaseModel):
+    """Configuration model for tools."""
+    name: str = Field(..., description="Tool name")
+    description: str = Field(..., description="Tool description")
+    version: str = Field(default="1.0.0", description="Tool version")
+    async_support: bool = Field(default=False, description="Whether tool supports async execution")
+    max_retries: int = Field(default=3, description="Maximum retry attempts on failure")
+    timeout: float = Field(default=30.0, description="Execution timeout in seconds")
+    cache_ttl: int = Field(default=300, description="Cache time-to-live in seconds")
+    max_workers: int = Field(default=4, description="Maximum number of worker threads")
+
+class BaseTool(ABC):
+    """Enhanced base class for tools with advanced features and metrics."""
+
+    def __init__(self, config: Optional[ToolConfig] = None, **kwargs):
         """
         Initialize a tool with enhanced configuration.
 
         Args:
-            name: Tool name
-            description: Tool description
-            version: Tool version
-            async_support: Whether tool supports async execution
-            max_retries: Maximum retry attempts on failure
-            timeout: Execution timeout in seconds
-            cache_ttl: Cache time-to-live in seconds
+            config: Tool configuration
+            **kwargs: Override configuration parameters
         """
-        self.name = name
-        self.description = description
-        self.version = version
-        self.async_support = async_support
-        self.max_retries = max_retries
-        self.timeout = timeout
-        self.cache_ttl = cache_ttl
+        # Initialize configuration
+        if config is None:
+            config = ToolConfig(**kwargs)
+        self.config = config
         
         # Initialize components
         self.metrics = ToolMetrics()
         self.cache = {}
         self.cache_timestamps = {}
-        self.executor = ThreadPoolExecutor(max_workers=4)
+        self.executor = ThreadPoolExecutor(max_workers=config.max_workers)
         self.validators: List[Callable] = []
         self.preprocessors: List[Callable] = []
         self.postprocessors: List[Callable] = []
         
         # Setup logging
-        self.logger = logging.getLogger(f"tool.{name}")
+        self.logger = logging.getLogger(f"tool.{config.name}")
 
+    @retry()
     async def execute(self, *args: Any, **kwargs: Any) -> Any:
         """
         Enhanced execute method with metrics, caching, and error handling.
+        
+        Args:
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+            
+        Returns:
+            Execution result
+            
+        Raises:
+            ToolError: Base class for tool-related errors
+            ToolTimeoutError: When execution exceeds timeout
+            ToolValidationError: When input validation fails
         """
         start_time = time.time()
-        cache_key = self._get_cache_key(args, kwargs)
+        success = False
+        error_type = None
         
         try:
             # Check cache
-            if cached_result := self._get_from_cache(cache_key):
-                self.logger.debug(f"Cache hit for {self.name}")
+            cache_key = self._get_cache_key(args, kwargs)
+            cached_result = self._get_from_cache(cache_key)
+            if cached_result is not None:
                 return cached_result
             
-            # Run validators
+            # Validate inputs
             for validator in self.validators:
-                validator(*args, **kwargs)
+                if not validator(*args, **kwargs):
+                    raise ToolValidationError("Input validation failed")
             
-            # Run preprocessors
-            processed_args = args
-            processed_kwargs = kwargs
+            # Preprocess inputs
             for preprocessor in self.preprocessors:
-                processed_args, processed_kwargs = preprocessor(*processed_args, **processed_kwargs)
+                args, kwargs = preprocessor(*args, **kwargs)
             
             # Execute with timeout
-            if self.async_support:
+            if self.config.async_support:
                 result = await asyncio.wait_for(
-                    self._execute(*processed_args, **processed_kwargs),
-                    timeout=self.timeout
+                    self._execute(*args, **kwargs),
+                    timeout=self.config.timeout
                 )
             else:
                 result = await asyncio.get_event_loop().run_in_executor(
                     self.executor,
                     self._execute,
-                    *processed_args,
-                    **processed_kwargs
+                    *args,
+                    **kwargs
                 )
             
-            # Run postprocessors
+            # Postprocess result
             for postprocessor in self.postprocessors:
                 result = postprocessor(result)
             
-            # Update cache
+            # Cache result
             self._add_to_cache(cache_key, result)
             
-            # Update metrics
-            duration = time.time() - start_time
-            self.metrics.update(duration, True)
-            
+            success = True
             return result
             
+        except asyncio.TimeoutError:
+            error_type = "timeout"
+            raise ToolTimeoutError(f"Execution exceeded {self.config.timeout} seconds")
         except Exception as e:
-            # Update error metrics
-            duration = time.time() - start_time
-            self.metrics.update(duration, False, type(e).__name__)
-            
-            # Log error
-            self.logger.error(f"Tool execution failed: {str(e)}", exc_info=True)
+            error_type = type(e).__name__
             raise
+        finally:
+            duration = time.time() - start_time
+            self.metrics.update(duration, success, error_type)
 
+    @abstractmethod
     def _execute(self, *args: Any, **kwargs: Any) -> Any:
         """
         Internal execution method to be implemented by subclasses.
+        
+        Args:
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+            
+        Returns:
+            Execution result
         """
-        raise NotImplementedError("Subclasses must implement the '_execute' method.")
+        pass
 
     def _get_cache_key(self, args: tuple, kwargs: dict) -> str:
         """Generate cache key from arguments."""
-        return f"{self.name}:{hash((args, frozenset(kwargs.items())))}"
+        return str(hash((str(args), str(sorted(kwargs.items())))))
 
     def _get_from_cache(self, key: str) -> Optional[Any]:
         """Get result from cache if valid."""
         if key in self.cache:
-            timestamp = self.cache_timestamps[key]
-            if time.time() - timestamp <= self.cache_ttl:
+            timestamp = self.cache_timestamps.get(key)
+            if timestamp and time.time() - timestamp <= self.config.cache_ttl:
                 return self.cache[key]
             else:
                 del self.cache[key]
@@ -191,22 +229,20 @@ class BaseTool:
     def get_metadata(self) -> Dict[str, Any]:
         """
         Get enhanced tool metadata.
+        
+        Returns:
+            Dict containing tool metadata and metrics
         """
         return {
-            "name": self.name,
-            "description": self.description,
-            "version": self.version,
-            "async_support": self.async_support,
+            "name": self.config.name,
+            "description": self.config.description,
+            "version": self.config.version,
+            "async_support": self.config.async_support,
             "metrics": {
                 "total_calls": self.metrics.total_calls,
                 "success_rate": self.metrics.success_rate,
                 "avg_duration": self.metrics.avg_duration,
-                "last_used": self.metrics.last_used
-            },
-            "configuration": {
-                "max_retries": self.max_retries,
-                "timeout": self.timeout,
-                "cache_ttl": self.cache_ttl
+                "error_types": self.metrics.error_types
             }
         }
 
@@ -214,3 +250,15 @@ class BaseTool:
         """Clear the tool's cache."""
         self.cache.clear()
         self.cache_timestamps.clear()
+
+    async def __aenter__(self) -> 'BaseTool':
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit."""
+        self.executor.shutdown(wait=False)
+
+    def __del__(self) -> None:
+        """Cleanup resources on deletion."""
+        self.executor.shutdown(wait=False)
