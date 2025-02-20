@@ -49,6 +49,32 @@ Shows the simulation system in action:
 python examples/04_simulation_agents.py
 ```
 
+## Real-World Agent Examples
+
+### 5. Coding Assistant (`05_coding_assistant.py`)
+Watch an AI coding assistant in action:
+- Code review and improvement suggestions
+- Bug fixing with root cause analysis
+- Code generation from requirements
+- Code explanation and documentation
+- Memory of past solutions
+
+```bash
+python examples/05_coding_assistant.py
+```
+
+### 6. Research Assistant (`06_research_assistant.py`)
+See how an AI research agent works:
+- Comprehensive topic research
+- Detailed analysis of findings
+- Summary generation for different audiences
+- Fact checking and verification
+- Research memory and knowledge building
+
+```bash
+python examples/06_research_assistant.py
+```
+
 ## Prerequisites
 
 Before running the examples:
