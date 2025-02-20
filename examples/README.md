@@ -85,8 +85,12 @@ pip install -r requirements.txt
 ```
 
 2. Set up API keys:
-- For web search examples: Get a Tavily API key
-- For LLM examples: Configure your preferred LLM provider
+   - Create a `config.py` file in the examples directory:
+   ```python
+   # examples/config.py
+   OPENAI_API_KEY = "your-api-key-here"  # Replace with your OpenAI API key
+   TAVILY_API_KEY = "your-api-key-here"  # Replace with your Tavily API key
+   ```
 
 3. Configure the keys in the example scripts or use environment variables:
 ```bash
