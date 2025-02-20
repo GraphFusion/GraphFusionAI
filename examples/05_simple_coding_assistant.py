@@ -1,7 +1,7 @@
 """
 Simplified example of a coding assistant using LLM capabilities.
 """
-import openai
+from openai import OpenAI
 import os
 from typing import Dict, List, Any
 import json
@@ -12,7 +12,7 @@ class SimpleCodingAssistant:
     def __init__(self, api_key: str = None):
         """Initialize the coding assistant."""
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        openai.api_key = self.api_key
+        self.client = OpenAI(api_key=self.api_key)
         self.memory = []
         
     def review_code(self, code: str) -> str:
@@ -99,7 +99,7 @@ class SimpleCodingAssistant:
     def _get_llm_response(self, prompt: str) -> str:
         """Get response from LLM."""
         try:
-            response = openai.ChatCompletion.create(
+            response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a helpful coding assistant."},
