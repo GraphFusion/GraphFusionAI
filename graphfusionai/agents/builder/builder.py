@@ -1,13 +1,13 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from typing import Any, Dict, Type, Union
 from graphfusionai.agents.base_agent import BaseAgent
 from graphfusionai.core.graph import GraphNetwork
 from graphfusionai.core.knowledge_graph import KnowledgeGraph
 from graphfusionai.memory.memory_manager import MemoryManager  
-from builder.validators import validate_config
+from .validators import validate_config
 from graphfusionai.tools.registry import ToolRegistry
 from graphfusionai.llm import create_llm
 import logging
