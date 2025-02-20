@@ -2,10 +2,18 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple
+import json
+import pickle
+from pathlib import Path
+from datetime import datetime
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from graphfusionai.memory.memory_index import MemoryIndex
 from graphfusionai.memory.dynamic_memory_cell import DynamicMemoryCell
 from graphfusionai.memory.embeddings import EmbeddingModel
 from graphfusionai.memory.retrieval import MemoryRetrieval
+import redis
 
 class MemoryManager:
     """
@@ -13,21 +21,59 @@ class MemoryManager:
     Handles memory storage, retrieval, and updates with advanced memory management features.
     """
 
-    def __init__(self, embedding_model: Optional[EmbeddingModel] = None):
+    def __init__(self, 
+                 embedding_model: Optional[EmbeddingModel] = None,
+                 cache_size: int = 1000,
+                 consolidation_threshold: float = 0.85,
+                 checkpoint_dir: Optional[str] = None,
+                 redis_url: Optional[str] = None,
+                 vector_dim: int = 768):
         """
-        Initializes the memory system.
-
+        Enhanced memory manager with distributed caching and advanced retrieval.
+        
         Args:
-            embedding_model: Model to generate embeddings. If None, creates default model.
+            embedding_model: Model for generating embeddings
+            cache_size: Size of local memory cache
+            consolidation_threshold: Threshold for memory consolidation
+            checkpoint_dir: Directory for memory checkpoints
+            redis_url: Optional Redis URL for distributed caching
+            vector_dim: Dimension of memory vectors
         """
         self.embedding_model = embedding_model or EmbeddingModel()
-        self.memory_cell = DynamicMemoryCell(self.embedding_model)
+        self.memory_cell = DynamicMemoryCell(
+            input_dim=vector_dim,
+            memory_dim=1000,
+            context_dim=vector_dim,
+            compression_ratio=0.5
+        )
+        
+        # Initialize memory index
+        self.memory_index = MemoryIndex(
+            vector_dim=vector_dim,
+            index_type='HNSW'  # Use HNSW for fast approximate search
+        )
+        
+        # Initialize distributed cache if Redis URL provided
+        self.redis_client = redis.from_url(redis_url) if redis_url else None
+        
+        # Local components
         self.memory_store: Dict[str, Dict[str, Any]] = {}
-        self.memory_tags: Dict[str, List[str]] = {}  
-        self.memory_timestamps: Dict[str, float] = {}  
-        self.importance_scores: Dict[str, float] = {}  
+        self.memory_tags: Dict[str, List[str]] = {}
+        self.memory_timestamps: Dict[str, float] = {}
+        self.importance_scores: Dict[str, float] = {}
         self.retrieval = MemoryRetrieval(embedding_model=self.embedding_model)
-
+        
+        # Memory management
+        self.cache = {}
+        self.cache_size = cache_size
+        self.consolidation_threshold = consolidation_threshold
+        self.checkpoint_dir = Path(checkpoint_dir) if checkpoint_dir else Path("./memory_checkpoints")
+        self.checkpoint_dir.mkdir(exist_ok=True)
+        
+        # Async components
+        self.thread_pool = ThreadPoolExecutor(max_workers=4)
+        self.background_tasks = set()
+        
     def store_memory(self, 
                     data: Union[str, List[str]], 
                     tags: Optional[List[str]] = None,
@@ -73,6 +119,176 @@ class MemoryManager:
 
         return memory_keys[0] if single_input else memory_keys
 
+    async def store_memory_async(self, 
+                               data: Union[str, List[str]], 
+                               tags: Optional[List[str]] = None,
+                               importance: float = 1.0,
+                               metadata: Optional[Dict[str, Any]] = None) -> Union[str, List[str]]:
+        """Asynchronous memory storage with distributed caching"""
+        if isinstance(data, str):
+            data = [data]
+            single_input = True
+        else:
+            single_input = False
+            
+        memory_keys = []
+        for text in data:
+            # Generate embedding
+            vector = await self._get_embedding_async(text)
+            memory_key = str(hash(tuple(vector.tolist())))
+            
+            # Store in local memory
+            self.memory_store[memory_key] = {
+                "data": text,
+                "metadata": metadata or {},
+                "embedding": vector
+            }
+            
+            # Add to memory index
+            self.memory_index.add_memory(memory_key, vector, metadata or {})
+            
+            # Store in distributed cache if available
+            if self.redis_client:
+                await self._store_in_cache_async(memory_key, text, vector, metadata)
+            
+            if tags:
+                self.memory_tags[memory_key] = tags
+                
+            self.importance_scores[memory_key] = importance
+            self.memory_timestamps[memory_key] = datetime.now().timestamp()
+            
+            # Add to dynamic memory cell
+            self.memory_cell.update_memory(vector, vector)
+            memory_keys.append(memory_key)
+            
+        # Schedule background optimization
+        self._schedule_background_task(self._optimize_memories())
+        
+        return memory_keys[0] if single_input else memory_keys
+    
+    async def retrieve_memory_async(self,
+                                  query: str,
+                                  top_k: int = 5,
+                                  min_similarity: float = 0.0,
+                                  tags: Optional[List[str]] = None,
+                                  strategy: str = 'hybrid') -> List[Dict[str, Any]]:
+        """
+        Enhanced asynchronous memory retrieval with multiple search strategies.
+        
+        Args:
+            query: Search query
+            top_k: Number of results
+            min_similarity: Minimum similarity threshold
+            tags: Optional tags to filter by
+            strategy: Search strategy ('exact', 'approximate', or 'hybrid')
+        """
+        query_vector = await self._get_embedding_async(query)
+        
+        if strategy == 'exact':
+            results = await self._exact_search(query_vector, top_k)
+        elif strategy == 'approximate':
+            results = self.memory_index.search(query_vector, top_k)
+        else:  # hybrid
+            # Combine exact and approximate search results
+            exact_results = await self._exact_search(query_vector, top_k // 2)
+            approx_results = self.memory_index.search(query_vector, top_k // 2)
+            results = self._merge_results(exact_results, approx_results)
+            
+        # Filter by similarity and tags
+        filtered_results = []
+        for key, similarity, metadata in results:
+            if similarity >= min_similarity:
+                if not tags or any(tag in self.memory_tags.get(key, []) for tag in tags):
+                    memory_data = await self._get_memory_data_async(key)
+                    if memory_data:
+                        filtered_results.append({
+                            "key": key,
+                            "data": memory_data["data"],
+                            "similarity": similarity,
+                            "metadata": metadata
+                        })
+                        
+        return filtered_results[:top_k]
+    
+    async def _get_embedding_async(self, text: str) -> torch.Tensor:
+        """Get embedding asynchronously"""
+        return await asyncio.get_event_loop().run_in_executor(
+            self.thread_pool,
+            lambda: self.embedding_model.encode(text)
+        )
+        
+    async def _store_in_cache_async(self, key: str, text: str, vector: torch.Tensor, metadata: Dict[str, Any]):
+        """Store memory in distributed cache"""
+        if self.redis_client:
+            cache_data = {
+                "text": text,
+                "vector": vector.tolist(),
+                "metadata": metadata
+            }
+            await asyncio.get_event_loop().run_in_executor(
+                self.thread_pool,
+                lambda: self.redis_client.set(f"memory:{key}", json.dumps(cache_data))
+            )
+            
+    async def _get_memory_data_async(self, key: str) -> Optional[Dict[str, Any]]:
+        """Get memory data from cache or local storage"""
+        # Try distributed cache first
+        if self.redis_client:
+            cache_data = await asyncio.get_event_loop().run_in_executor(
+                self.thread_pool,
+                lambda: self.redis_client.get(f"memory:{key}")
+            )
+            if cache_data:
+                return json.loads(cache_data)
+                
+        # Fall back to local storage
+        return self.memory_store.get(key)
+        
+    async def _exact_search(self, query_vector: torch.Tensor, top_k: int) -> List[Tuple[str, float, Dict[str, Any]]]:
+        """Perform exact similarity search"""
+        results = []
+        for key, memory in self.memory_store.items():
+            similarity = torch.cosine_similarity(query_vector, memory["embedding"], dim=0).item()
+            results.append((key, similarity, memory["metadata"]))
+            
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:top_k]
+        
+    def _merge_results(self, exact_results: List[Tuple], approx_results: List[Tuple]) -> List[Tuple]:
+        """Merge and deduplicate search results"""
+        seen_keys = set()
+        merged = []
+        
+        for results in [exact_results, approx_results]:
+            for key, similarity, metadata in results:
+                if key not in seen_keys:
+                    merged.append((key, similarity, metadata))
+                    seen_keys.add(key)
+                    
+        merged.sort(key=lambda x: x[1], reverse=True)
+        return merged
+        
+    def _schedule_background_task(self, coro):
+        """Schedule a background task"""
+        task = asyncio.create_task(coro)
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
+        
+    async def _optimize_memories(self):
+        """Background task to optimize memory storage"""
+        # Optimize memory index
+        self.memory_index.optimize()
+        
+        # Compress memories if needed
+        if len(self.memory_store) > self.cache_size:
+            self.memory_cell.compress_memories()
+            
+        # Consolidate similar memories
+        await self.consolidate_memories_async()
+        
+        # Prune old memories
+        self.prune_memories()
+        
     def retrieve_memory(self, 
                        query: str,
                        top_k: int = 5,
@@ -156,6 +372,129 @@ class MemoryManager:
             if value["data"] == text:
                 return key
         return None
+
+    def consolidate_memories(self) -> None:
+        """Consolidate similar memories to optimize storage"""
+        all_vectors = torch.stack([mem["embedding"] for mem in self.memory_store.values()])
+        similarities = torch.matmul(all_vectors, all_vectors.T)
+        
+        consolidated = set()
+        for i in range(len(similarities)):
+            if i in consolidated:
+                continue
+                
+            similar_indices = torch.where(similarities[i] > self.consolidation_threshold)[0]
+            if len(similar_indices) > 1:
+                self._merge_memories(similar_indices.tolist())
+                consolidated.update(similar_indices.tolist())
+
+    async def consolidate_memories_async(self) -> None:
+        """Consolidate similar memories to optimize storage"""
+        all_vectors = torch.stack([mem["embedding"] for mem in self.memory_store.values()])
+        similarities = torch.matmul(all_vectors, all_vectors.T)
+        
+        consolidated = set()
+        for i in range(len(similarities)):
+            if i in consolidated:
+                continue
+                
+            similar_indices = torch.where(similarities[i] > self.consolidation_threshold)[0]
+            if len(similar_indices) > 1:
+                await self._merge_memories_async(similar_indices.tolist())
+                consolidated.update(similar_indices.tolist())
+
+    def _merge_memories(self, indices: List[int]) -> None:
+        """Merge similar memories into a single, more comprehensive memory"""
+        keys = list(self.memory_store.keys())
+        base_key = keys[indices[0]]
+        
+        # Merge metadata and tags
+        for idx in indices[1:]:
+            key = keys[idx]
+            self.memory_store[base_key]["metadata"].update(self.memory_store[key]["metadata"])
+            if key in self.memory_tags:
+                self.memory_tags[base_key] = list(set(self.memory_tags[base_key] + self.memory_tags[key]))
+            
+            # Clean up merged memory
+            del self.memory_store[key]
+            self.memory_tags.pop(key, None)
+            self.memory_timestamps.pop(key, None)
+            self.importance_scores.pop(key, None)
+
+    async def _merge_memories_async(self, indices: List[int]) -> None:
+        """Merge similar memories into a single, more comprehensive memory"""
+        keys = list(self.memory_store.keys())
+        base_key = keys[indices[0]]
+        
+        # Merge metadata and tags
+        for idx in indices[1:]:
+            key = keys[idx]
+            self.memory_store[base_key]["metadata"].update(self.memory_store[key]["metadata"])
+            if key in self.memory_tags:
+                self.memory_tags[base_key] = list(set(self.memory_tags[base_key] + self.memory_tags[key]))
+            
+            # Clean up merged memory
+            del self.memory_store[key]
+            self.memory_tags.pop(key, None)
+            self.memory_timestamps.pop(key, None)
+            self.importance_scores.pop(key, None)
+
+    def checkpoint_memory(self) -> str:
+        """Save current memory state to disk"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        checkpoint_path = self.checkpoint_dir / f"memory_checkpoint_{timestamp}.pkl"
+        
+        state = {
+            "memory_store": self.memory_store,
+            "memory_tags": self.memory_tags,
+            "memory_timestamps": self.memory_timestamps,
+            "importance_scores": self.importance_scores
+        }
+        
+        with open(checkpoint_path, "wb") as f:
+            pickle.dump(state, f)
+            
+        return str(checkpoint_path)
+
+    def load_checkpoint(self, checkpoint_path: str) -> None:
+        """Load memory state from checkpoint"""
+        with open(checkpoint_path, "rb") as f:
+            state = pickle.load(f)
+            
+        self.memory_store = state["memory_store"]
+        self.memory_tags = state["memory_tags"]
+        self.memory_timestamps = state["memory_timestamps"]
+        self.importance_scores = state["importance_scores"]
+
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Get memory usage statistics"""
+        return {
+            "total_memories": len(self.memory_store),
+            "tagged_memories": len(self.memory_tags),
+            "avg_importance": sum(self.importance_scores.values()) / len(self.importance_scores) if self.importance_scores else 0,
+            "memory_size_bytes": sys.getsizeof(pickle.dumps(self.memory_store)),
+            "cache_usage": len(self.cache) / self.cache_size
+        }
+
+    def prune_memories(self, age_threshold: float = 7*24*60*60, importance_threshold: float = 0.3) -> int:
+        """Remove old and low-importance memories"""
+        current_time = torch.cuda.Event().record()
+        keys_to_remove = []
+        
+        for key, timestamp in self.memory_timestamps.items():
+            age = current_time - timestamp
+            importance = self.importance_scores.get(key, 0)
+            
+            if age > age_threshold and importance < importance_threshold:
+                keys_to_remove.append(key)
+                
+        for key in keys_to_remove:
+            del self.memory_store[key]
+            self.memory_tags.pop(key, None)
+            self.memory_timestamps.pop(key, None)
+            self.importance_scores.pop(key, None)
+            
+        return len(keys_to_remove)
 
     def clear(self) -> None:
         """Clears all stored memories and related data."""
